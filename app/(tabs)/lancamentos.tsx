@@ -15,6 +15,7 @@
  *  4. Leitor de Faturas via expo-camera (Escanear Conta + simulador OCR de 2 segundos).
  */
 
+import { useColorScheme } from "nativewind";
 import {
   View,
   Text,
@@ -58,19 +59,19 @@ export interface CategoriaOption {
 }
 
 const CATEGORIAS_RECEITA: CategoriaOption[] = [
-  { label: "Salário", iconName: "cash", iconFamily: "Ionicons", color: "#34d399" },
-  { label: "Freelancer", iconName: "car", iconFamily: "Ionicons", color: "#34d399" },
-  { label: "Outros", iconName: "ellipsis-horizontal", iconFamily: "Ionicons", color: "#94a3b8" },
+  { label: "Salário", iconName: "briefcase-outline", iconFamily: "Ionicons", color: "#34d399" },
+  { label: "Freelancer", iconName: "laptop-outline", iconFamily: "Ionicons", color: "#34d399" },
+  { label: "Outros", iconName: "grid-outline", iconFamily: "Ionicons", color: "#94a3b8" },
 ];
 
 const CATEGORIAS_DESPESA: CategoriaOption[] = [
-  { label: "Lazer", iconName: "game-controller", iconFamily: "Ionicons", color: "#ec4899" },
-  { label: "Alimentação", iconName: "fast-food", iconFamily: "Ionicons", color: "#f97316" },
-  { label: "Assinaturas", iconName: "tv", iconFamily: "Ionicons", color: "#14b8a6" },
-  { label: "Saúde", iconName: "medkit", iconFamily: "Ionicons", color: "#ef4444" },
-  { label: "Casa", iconName: "home", iconFamily: "Ionicons", color: "#3b82f6" },
-  { label: "Poupança", iconName: "wallet", iconFamily: "Ionicons", color: "#c4b5fd" },
-  { label: "Reserva da Moto", iconName: "motorcycle", iconFamily: "MaterialCommunityIcons", color: "#f59e0b" },
+  { label: "Lazer", iconName: "airplane-outline", iconFamily: "Ionicons", color: "#ec4899" },
+  { label: "Alimentação", iconName: "restaurant-outline", iconFamily: "Ionicons", color: "#f97316" },
+  { label: "Assinaturas", iconName: "film-outline", iconFamily: "Ionicons", color: "#14b8a6" },
+  { label: "Saúde", iconName: "heart-outline", iconFamily: "Ionicons", color: "#ef4444" },
+  { label: "Casa", iconName: "home-outline", iconFamily: "Ionicons", color: "#3b82f6" },
+  { label: "Poupança", iconName: "shield-checkmark-outline", iconFamily: "Ionicons", color: "#67e8f9" },
+  { label: "Reserva da Moto", iconName: "construct-outline", iconFamily: "Ionicons", color: "#f59e0b" },
 ];
 
 function getCategoryOption(label: string): CategoriaOption {
@@ -126,6 +127,10 @@ interface CameraScreenProps {
 }
 
 function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const camStyles = getCamStyles(isDark);
+
   const [permission, requestPermission] = useCameraPermissions();
   const [processando, setProcessando] = useState(false);
   const cameraRef = useRef<CameraView>(null);
@@ -149,7 +154,7 @@ function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
   if (!permission) {
     return (
       <View style={camStyles.container}>
-        <ActivityIndicator color="#7c3aed" size="large" />
+        <ActivityIndicator color="#0891b2" size="large" />
       </View>
     );
   }
@@ -157,7 +162,7 @@ function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
   if (!permission.granted) {
     return (
       <View style={camStyles.container}>
-        <Ionicons name="camera" size={48} color="#7c3aed" style={{ alignSelf: "center", marginBottom: 16 }} />
+        <Ionicons name="camera" size={48} color="#0891b2" style={{ alignSelf: "center", marginBottom: 16 }} />
         <Text style={camStyles.permTitle}>Permissão de Câmera Necessária</Text>
         <Text style={camStyles.permSubtitle}>
           Precisamos de acesso à sua câmera para escanear contas e faturas automaticamente.
@@ -212,12 +217,12 @@ function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
   );
 }
 
-const camStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#020617", justifyContent: "center" },
+const getCamStyles = (isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? "#020617" : "#f8fafc", justifyContent: "center" },
   camera: { flex: 1 },
-  overlay: { flex: 1, backgroundColor: "rgba(2, 6, 23, 0.4)", justifyContent: "space-between", padding: 24 },
+  overlay: { flex: 1, backgroundColor: isDark ? isDark ? "rgba(2, 6, 23, 0.85)" : "rgba(2, 6, 23, 0.5)" : "rgba(2, 6, 23, 0.4)", justifyContent: "space-between", padding: 24 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 40 },
-  topTitle: { color: "#f1f5f9", fontSize: 16, fontWeight: "700" },
+  topTitle: { color: isDark ? "#f1f5f9" : "#0f172a", fontSize: 16, fontWeight: "700" },
   fecharBtn: { padding: 8 },
   fecharBtnText: { color: "#94a3b8", fontSize: 14, fontWeight: "600" },
   mira: {
@@ -232,24 +237,24 @@ const camStyles = StyleSheet.create({
   cornerTR: { top: 0, right: 0, borderBottomWidth: 0, borderLeftWidth: 0 },
   cornerBL: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0 },
   cornerBR: { bottom: 0, right: 0, borderTopWidth: 0, borderLeftWidth: 0 },
-  miraText: { color: "#ffffff", fontSize: 13, textAlign: "center", fontWeight: "600", marginTop: 80 },
+  miraText: { color: isDark ? "#ffffff" : "#0f172a", fontSize: 13, textAlign: "center", fontWeight: "600", marginTop: 80 },
   bottomBar: { alignItems: "center", paddingBottom: 32 },
   capturaBtn: {
     width: 76, height: 76, borderRadius: 38,
     backgroundColor: "rgba(255, 255, 255, 0.3)",
     alignItems: "center", justifyContent: "center",
-    borderWidth: 4, borderColor: "#ffffff",
+    borderWidth: 4, borderColor: isDark ? "#ffffff" : "#0f172a",
   },
-  capturaBtnInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#ffffff" },
+  capturaBtnInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: isDark ? "#ffffff" : "#0f172a" },
   processandoContainer: { alignItems: "center", gap: 8, paddingBottom: 40 },
-  processandoTitle: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
-  processandoSub: { color: "#c4b5fd", fontSize: 12 },
-  permTitle: { fontSize: 20, fontWeight: "700", color: "#f1f5f9", textAlign: "center", marginBottom: 12 },
+  processandoTitle: { color: isDark ? "#ffffff" : "#0f172a", fontSize: 16, fontWeight: "700" },
+  processandoSub: { color: "#67e8f9", fontSize: 12 },
+  permTitle: { fontSize: 20, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a", textAlign: "center", marginBottom: 12 },
   permSubtitle: { fontSize: 14, color: "#94a3b8", textAlign: "center", marginBottom: 24, paddingHorizontal: 20, lineHeight: 20 },
-  permBtn: { backgroundColor: "#7c3aed", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, marginBottom: 12, alignItems: "center" },
-  permBtnText: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
+  permBtn: { backgroundColor: "#0891b2", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, marginBottom: 12, alignItems: "center" },
+  permBtnText: { color: isDark ? "#ffffff" : "#0f172a", fontWeight: "700", fontSize: 15 },
   cancelBtn: { paddingVertical: 10, alignItems: "center" },
-  cancelBtnText: { color: "#64748b", fontSize: 14 },
+  cancelBtnText: { color: isDark ? "#64748b" : "#94a3b8", fontSize: 14 },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -271,6 +276,10 @@ function ModalSelecaoCategoria({
   onClose,
   onSelect,
 }: ModalSelecaoCategoriaProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const catModalStyles = getCatModalStyles(isDark);
+
   const opcoes = type === "income" ? CATEGORIAS_RECEITA : CATEGORIAS_DESPESA;
 
   return (
@@ -309,7 +318,7 @@ function ModalSelecaoCategoria({
                     {opt.label}
                   </Text>
                   {selecionada && (
-                    <Ionicons name="checkmark-circle" size={22} color="#7c3aed" style={{ marginLeft: "auto" }} />
+                    <Ionicons name="checkmark-circle" size={22} color="#0891b2" style={{ marginLeft: "auto" }} />
                   )}
                 </TouchableOpacity>
               );
@@ -321,23 +330,23 @@ function ModalSelecaoCategoria({
   );
 }
 
-const catModalStyles = StyleSheet.create({
+const getCatModalStyles = (isDark: boolean) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(2, 6, 23, 0.75)",
+    backgroundColor: isDark ? "rgba(2, 6, 23, 0.85)" : "rgba(2, 6, 23, 0.5)",
     justifyContent: "flex-end",
   },
   cardModal: {
-    backgroundColor: "#0f172a",
+    backgroundColor: isDark ? "#0f172a" : isDark ? "#ffffff" : "#0f172a",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     gap: 16,
     borderWidth: 1,
-    borderColor: "#1e293b",
+    borderColor: isDark ? "#1e293b" : isDark ? "#f1f5f9" : "#0f172a",
   },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  titulo: { fontSize: 16, fontWeight: "700", color: "#f1f5f9" },
+  titulo: { fontSize: 16, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a" },
   closeBtn: { padding: 4 },
   closeText: { fontSize: 16, color: "#94a3b8", fontWeight: "700" },
 
@@ -349,13 +358,13 @@ const catModalStyles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 6,
-    backgroundColor: "#1e293b",
+    backgroundColor: isDark ? "#1e293b" : isDark ? "#f1f5f9" : "#0f172a",
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: isDark ? "#334155" : "#cbd5e1",
   },
   itemRowSelected: {
     backgroundColor: "#2e1065",
-    borderColor: "#7c3aed",
+    borderColor: "#0891b2",
   },
   iconContainer: {
     width: 32,
@@ -364,10 +373,10 @@ const catModalStyles = StyleSheet.create({
   itemText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#f1f5f9",
+    color: isDark ? "#f1f5f9" : "#0f172a",
   },
   itemTextSelected: {
-    color: "#c4b5fd",
+    color: "#67e8f9",
     fontWeight: "700",
   },
 });
@@ -389,6 +398,10 @@ function NovaTransacaoModal({
   onSuccess,
   initialValues,
 }: NovaTransacaoModalProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const styles = getStyles(isDark);
+
   const { registrar, isLoading, error } = useRegistrarTransacao();
 
   const [title, setTitle] = useState(initialValues?.title ?? "");
@@ -481,7 +494,7 @@ function NovaTransacaoModal({
             onPress={() => setCameraAberta(true)}
             activeOpacity={0.8}
           >
-            <Ionicons name="camera" size={24} color="#c4b5fd" />
+            <Ionicons name="camera" size={24} color="#67e8f9" />
             <View style={{ flex: 1, marginLeft: 8 }}>
               <Text style={styles.cameraHighlightTitle}>Escanear Conta com Câmera</Text>
               <Text style={styles.cameraHighlightSub}>Auto-preencher formulário via OCR</Text>
@@ -524,7 +537,7 @@ function NovaTransacaoModal({
             value={title}
             onChangeText={setTitle}
             placeholder="Ex: Salário, Conta de Luz, Depósito..."
-            placeholderTextColor="#475569"
+            placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
           />
 
           {/* Valor */}
@@ -534,7 +547,7 @@ function NovaTransacaoModal({
             value={amount}
             onChangeText={setAmount}
             placeholder="0.00"
-            placeholderTextColor="#475569"
+            placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
             keyboardType="decimal-pad"
           />
 
@@ -551,7 +564,7 @@ function NovaTransacaoModal({
               {renderCategoryIcon(categoria, 22)}
               <Text style={styles.categorySelectText}>{categoria}</Text>
             </View>
-            <Ionicons name="chevron-down" size={20} color="#c4b5fd" />
+            <Ionicons name="chevron-down" size={20} color="#67e8f9" />
           </TouchableOpacity>
 
           {/* Switch Fixa/Recorrente */}
@@ -563,8 +576,8 @@ function NovaTransacaoModal({
             <Switch
               value={isFixed}
               onValueChange={setIsFixed}
-              trackColor={{ false: "#1e293b", true: "#4c1d95" }}
-              thumbColor={isFixed ? "#7c3aed" : "#475569"}
+              trackColor={{ false: isDark ? "#1e293b" : isDark ? "#f1f5f9" : "#0f172a", true: "#4c1d95" }}
+              thumbColor={isFixed ? "#0891b2" : isDark ? "#475569" : "#94a3b8"}
             />
           </View>
 
@@ -604,19 +617,23 @@ interface TransacaoItemProps {
 }
 
 function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const styles = getStyles(isDark);
+
   const isPoupanca =
     transaction.category === "Poupança" || transaction.category === "Reserva da Moto";
   const isIncome = transaction.type === "income";
 
-  let bgCard = "#0f172a";
-  let borderColor = "#1e293b";
+  let bgCard = isDark ? "#0f172a" : "#ffffff";
+  let borderColor = isDark ? "#1e293b" : "#e2e8f0";
   let valorCor = isIncome ? "#34d399" : "#f43f5e";
   let sinal = isIncome ? "+" : "-";
 
   if (isPoupanca) {
-    bgCard = "#1e1035";
-    borderColor = "#7c3aed";
-    valorCor = "#c4b5fd";
+    bgCard = isDark ? "#083344" : "#cffafe"; // Cyan-950 and Cyan-100
+    borderColor = "#0891b2";
+    valorCor = isDark ? "#67e8f9" : "#0891b2";
   }
 
   return (
@@ -641,7 +658,7 @@ function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
             <Text
               style={[
                 styles.txCategoryText,
-                isPoupanca && { color: "#c4b5fd" },
+                isPoupanca && { color: "#67e8f9" },
                 isIncome && { color: "#34d399" },
               ]}
             >
@@ -661,7 +678,7 @@ function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
           style={styles.txDeleteBtn}
           accessibilityLabel="Deletar transação"
         >
-          <Ionicons name="trash-outline" size={16} color="#64748b" />
+          <Ionicons name="trash-outline" size={16} color={isDark ? "#64748b" : "#94a3b8"} />
         </TouchableOpacity>
       </View>
     </View>
@@ -673,6 +690,10 @@ function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function LancamentosScreen() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const styles = getStyles(isDark);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [cameraDirect, setCameraDirect] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -694,8 +715,12 @@ export default function LancamentosScreen() {
       });
       setModalVisible(true);
       router.setParams({ openModal: "", amount: "", title: "", category: "" });
+    } else if (params.openScan === "true") {
+      setInitialFormValues(null);
+      setCameraDirect(true);
+      router.setParams({ openScan: "" });
     }
-  }, [params.openModal]);
+  }, [params.openModal, params.openScan]);
 
   const { transacoes, isLoading, refetch, deletarTransacao } = useTransacoes();
 
@@ -756,8 +781,8 @@ export default function LancamentosScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#7c3aed"
-            colors={["#7c3aed"]}
+            tintColor="#0891b2"
+            colors={["#0891b2"]}
           />
         }
       >
@@ -768,7 +793,7 @@ export default function LancamentosScreen() {
           activeOpacity={0.85}
         >
           <View style={styles.scanIconBg}>
-            <Ionicons name="camera" size={24} color="#ffffff" />
+            <Ionicons name="camera" size={24} color={isDark ? "#ffffff" : "#0f172a"} />
           </View>
           <View style={styles.scanInfo}>
             <Text style={styles.scanTitle}>Escanear Conta com Câmera</Text>
@@ -788,10 +813,10 @@ export default function LancamentosScreen() {
         </View>
 
         {isLoading && transacoes.length === 0 ? (
-          <ActivityIndicator color="#7c3aed" style={{ marginVertical: 40 }} />
+          <ActivityIndicator color="#0891b2" style={{ marginVertical: 40 }} />
         ) : transacoes.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Ionicons name="receipt-outline" size={44} color="#64748b" style={{ marginBottom: 4 }} />
+            <Ionicons name="receipt-outline" size={44} color={isDark ? "#64748b" : "#94a3b8"} style={{ marginBottom: 4 }} />
             <Text style={styles.emptyTitle}>Nenhum lançamento registrado</Text>
             <Text style={styles.emptySubtitle}>
               Toque em "+ Novo" ou "Escanear Conta" para adicionar sua primeira receita ou despesa.
@@ -835,49 +860,49 @@ export default function LancamentosScreen() {
 // Estilos Globais da Tela
 // ─────────────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#020617" },
+const getStyles = (isDark: boolean) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: isDark ? "#020617" : "#f8fafc" },
   header: {
     flexDirection: "row", justifyContent: "space-between",
     alignItems: "center", padding: 20, paddingBottom: 12,
   },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#f1f5f9" },
-  headerSub: { fontSize: 12, color: "#64748b", marginTop: 2 },
-  addButton: { backgroundColor: "#7c3aed", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
-  addButtonText: { color: "#ffffff", fontWeight: "700", fontSize: 14 },
+  headerTitle: { fontSize: 22, fontWeight: "800", color: isDark ? "#f1f5f9" : "#0f172a" },
+  headerSub: { fontSize: 12, color: isDark ? "#94a3b8" : "#64748b", marginTop: 2 },
+  addButton: { backgroundColor: "#0891b2", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  addButtonText: { color: isDark ? "#ffffff" : "#ffffff", fontWeight: "700", fontSize: 14 },
   scrollView: { flex: 1 },
   scrollContent: { padding: 18, gap: 14 },
 
   scanBannerCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: "#1e1035", borderRadius: 16, padding: 18,
-    borderWidth: 1, borderColor: "#7c3aed",
+    backgroundColor: isDark ? "#083344" : "#cffafe", borderRadius: 16, padding: 18,
+    borderWidth: 1, borderColor: "#0891b2",
   },
   scanIconBg: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "#7c3aed",
+    backgroundColor: "#0891b2",
     alignItems: "center", justifyContent: "center",
   },
   scanInfo: { flex: 1 },
-  scanTitle: { fontSize: 16, fontWeight: "800", color: "#f1f5f9" },
-  scanSub: { fontSize: 12, color: "#c4b5fd", marginTop: 2, lineHeight: 16 },
+  scanTitle: { fontSize: 16, fontWeight: "800", color: isDark ? "#f1f5f9" : "#0f172a" },
+  scanSub: { fontSize: 12, color: isDark ? "#67e8f9" : "#0891b2", marginTop: 2, lineHeight: 16 },
   scanBadge: {
-    backgroundColor: "#4c1d95", paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 12, borderWidth: 1, borderColor: "#a855f7",
+    backgroundColor: "#083344", paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 12, borderWidth: 1, borderColor: "#06b6d4",
   },
-  scanBadgeText: { color: "#c4b5fd", fontSize: 11, fontWeight: "800" },
+  scanBadgeText: { color: "#67e8f9", fontSize: 11, fontWeight: "800" },
 
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#f1f5f9" },
-  sectionSub: { fontSize: 12, color: "#64748b" },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: isDark ? "#f1f5f9" : "#0f172a" },
+  sectionSub: { fontSize: 12, color: isDark ? "#94a3b8" : "#64748b" },
 
   emptyCard: {
-    backgroundColor: "#0f172a", borderRadius: 16, padding: 36,
-    alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#1e293b",
+    backgroundColor: isDark ? "#0f172a" : "#ffffff", borderRadius: 16, padding: 36,
+    alignItems: "center", gap: 8, borderWidth: 1, borderColor: isDark ? "#1e293b" : "#e2e8f0",
     borderStyle: "dashed", marginTop: 8,
   },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#f1f5f9" },
-  emptySubtitle: { fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 18 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a" },
+  emptySubtitle: { fontSize: 13, color: isDark ? "#94a3b8" : "#64748b", textAlign: "center", lineHeight: 18 },
 
   txList: { gap: 10 },
   txCard: {
@@ -890,77 +915,77 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   txMainInfo: { flex: 1 },
-  txTitle: { fontSize: 14, fontWeight: "700", color: "#f1f5f9" },
+  txTitle: { fontSize: 14, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a" },
   txTagRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   txCategoryBadge: {
-    backgroundColor: "#1e293b",
+    backgroundColor: isDark ? "#1e293b" : "#e2e8f0",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  txCategoryText: { fontSize: 11, color: "#94a3b8", fontWeight: "600" },
-  txDate: { fontSize: 11, color: "#64748b" },
+  txCategoryText: { fontSize: 11, color: isDark ? "#94a3b8" : "#475569", fontWeight: "600" },
+  txDate: { fontSize: 11, color: isDark ? "#94a3b8" : "#64748b" },
   txRight: { alignItems: "flex-end", gap: 4 },
   txAmount: { fontSize: 15, fontWeight: "800" },
   txDeleteBtn: { padding: 4 },
 
   // Modal
-  modalContainer: { flex: 1, backgroundColor: "#0f172a" },
+  modalContainer: { flex: 1, backgroundColor: isDark ? "#0f172a" : "#ffffff" },
   modalHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    padding: 20, borderBottomColor: "#1e293b", borderBottomWidth: 1,
+    padding: 20, borderBottomColor: isDark ? "#1e293b" : "#e2e8f0", borderBottomWidth: 1,
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#f1f5f9" },
-  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
-  modalCloseText: { color: "#94a3b8", fontSize: 14, fontWeight: "700" },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a" },
+  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? "#1e293b" : "#e2e8f0", alignItems: "center", justifyContent: "center" },
+  modalCloseText: { color: isDark ? "#94a3b8" : "#475569", fontSize: 14, fontWeight: "700" },
   modalBody: { padding: 20 },
 
   cameraHighlightBtn: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#2e1065", borderRadius: 14, padding: 16,
-    borderWidth: 1, borderColor: "#7c3aed", marginBottom: 20,
+    backgroundColor: isDark ? "#083344" : "#cffafe", borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: "#0891b2", marginBottom: 20,
   },
-  cameraHighlightTitle: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
-  cameraHighlightSub: { color: "#c4b5fd", fontSize: 12, marginTop: 2 },
+  cameraHighlightTitle: { color: isDark ? "#ffffff" : "#0f172a", fontWeight: "700", fontSize: 15 },
+  cameraHighlightSub: { color: isDark ? "#67e8f9" : "#0891b2", fontSize: 12, marginTop: 2 },
 
   divisorOu: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
-  divisorLinha: { flex: 1, height: 1, backgroundColor: "#1e293b" },
-  divisorTexto: { fontSize: 11, color: "#475569", fontWeight: "500" },
+  divisorLinha: { flex: 1, height: 1, backgroundColor: isDark ? "#1e293b" : "#e2e8f0" },
+  divisorTexto: { fontSize: 11, color: isDark ? "#94a3b8" : "#64748b", fontWeight: "500" },
 
   typeSelector: { flexDirection: "row", gap: 12, marginBottom: 16 },
   typeBtn: {
-    flex: 1, backgroundColor: "#1e293b", paddingVertical: 12,
+    flex: 1, backgroundColor: isDark ? "#1e293b" : "#f1f5f9", paddingVertical: 12,
     borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: "transparent",
   },
-  typeBtnExpenseActive: { borderColor: "#f43f5e", backgroundColor: "#1c0a12" },
-  typeBtnIncomeActive: { borderColor: "#10b981", backgroundColor: "#052e16" },
-  typeBtnText: { color: "#94a3b8", fontWeight: "600", fontSize: 14 },
+  typeBtnExpenseActive: { borderColor: "#f43f5e", backgroundColor: isDark ? "#1c0a12" : "#ffe4e6" },
+  typeBtnIncomeActive: { borderColor: "#10b981", backgroundColor: isDark ? "#052e16" : "#d1fae5" },
+  typeBtnText: { color: isDark ? "#94a3b8" : "#64748b", fontWeight: "600", fontSize: 14 },
 
-  inputLabel: { color: "#94a3b8", fontSize: 12, fontWeight: "600", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
-  input: { backgroundColor: "#1e293b", borderRadius: 10, padding: 14, color: "#f1f5f9", fontSize: 15, marginBottom: 16 },
+  inputLabel: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 12, fontWeight: "600", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
+  input: { backgroundColor: isDark ? "#1e293b" : "#f1f5f9", borderRadius: 10, padding: 14, color: isDark ? "#f1f5f9" : "#0f172a", fontSize: 15, marginBottom: 16 },
 
   categorySelectBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#1e293b",
+    backgroundColor: isDark ? "#1e293b" : "#f1f5f9",
     borderRadius: 10,
     padding: 14,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: isDark ? "#334155" : "#cbd5e1",
   },
-  categorySelectText: { color: "#f1f5f9", fontSize: 15, fontWeight: "600" },
+  categorySelectText: { color: isDark ? "#f1f5f9" : "#0f172a", fontSize: 15, fontWeight: "600" },
 
   switchRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    backgroundColor: "#1e293b", padding: 14, borderRadius: 10, marginBottom: 20,
+    backgroundColor: isDark ? "#1e293b" : "#f1f5f9", padding: 14, borderRadius: 10, marginBottom: 20,
   },
-  switchLabel: { color: "#f1f5f9", fontWeight: "600", fontSize: 14 },
-  switchSubLabel: { color: "#64748b", fontSize: 12, marginTop: 2 },
+  switchLabel: { color: isDark ? "#f1f5f9" : "#0f172a", fontWeight: "600", fontSize: 14 },
+  switchSubLabel: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 12, marginTop: 2 },
 
   errorText: { color: "#f43f5e", fontSize: 13, marginBottom: 12 },
-  submitBtn: { backgroundColor: "#7c3aed", padding: 16, borderRadius: 12, alignItems: "center", marginBottom: 32 },
+  submitBtn: { backgroundColor: "#0891b2", padding: 16, borderRadius: 12, alignItems: "center", marginBottom: 32 },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
 });

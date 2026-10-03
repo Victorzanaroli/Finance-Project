@@ -1,17 +1,8 @@
 /**
  * src/adapters/components/CaixinhaCard.tsx
- *
- * Componente visual: Cartão de uma Caixinha de Poupança (Meta).
- *
- * Exibe:
- *   - Título e emoji de status (✅ se concluída)
- *   - Valor acumulado vs. valor alvo
- *   - Barra de progresso animada
- *   - Percentual e valor restante
- *   - Botão em destaque "Depositar" para aportar valores na caixinha
  */
 
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, useColorScheme } from "react-native";
 import { useEffect, useRef } from "react";
 import type { Goal } from "../../domain/entities/Goal";
 
@@ -29,8 +20,9 @@ interface CaixinhaCardProps {
 }
 
 export function CaixinhaCard({ goal, onDepositar }: CaixinhaCardProps) {
+  const isDark = useColorScheme() === "dark";
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const percentual = goal.percentualConcluido / 100; // 0.0 → 1.0
+  const percentual = goal.percentualConcluido / 100;
 
   useEffect(() => {
     progressAnim.setValue(0);
@@ -50,75 +42,69 @@ export function CaixinhaCard({ goal, onDepositar }: CaixinhaCardProps) {
     outputRange: ["0%", "100%"],
   });
 
+  const bgColor = isDark ? "#0f172a" : "#ffffff";
+  const borderColor = isConcluida ? (isDark ? "#065f46" : "#10b981") : (isDark ? "#1e293b" : "#e2e8f0");
+  const textColor = isDark ? "#f1f5f9" : "#0f172a";
+  const textMuted = isDark ? "#64748b" : "#94a3b8";
+
   return (
-    <View style={[styles.card, isConcluida && styles.cardConcluido]}>
-      {/* Header */}
+    <View style={[styles.card, { backgroundColor: bgColor, borderColor }]}>
       <View style={styles.cardHeader}>
-        <View style={styles.indicadorCor}>
+        <View style={[styles.indicadorCor, { backgroundColor: isDark ? "#1e293b" : "#f1f5f9" }]}>
           <View style={[styles.dot, { backgroundColor: goal.colorHex }]} />
         </View>
-        <Text style={styles.titulo} numberOfLines={1}>
+        <Text style={[styles.titulo, { color: textColor }]} numberOfLines={1}>
           {isConcluida ? "✅ " : ""}{goal.title}
         </Text>
         <Text
           style={[
             styles.percentualBadge,
-            { backgroundColor: isConcluida ? "#065f46" : "#1e1035" },
-            { color: isConcluida ? "#34d399" : "#c4b5fd" },
+            { backgroundColor: isConcluida ? (isDark ? "#065f46" : "#d1fae5") : (isDark ? "#1e1035" : "#f3e8ff") },
+            { color: isConcluida ? (isDark ? "#34d399" : "#059669") : (isDark ? "#c4b5fd" : "#7c3aed") },
           ]}
         >
           {goal.percentualConcluido}%
         </Text>
       </View>
 
-      {/* Valores */}
       <View style={styles.valoresRow}>
         <Text style={styles.valorAtual}>
-          <Text style={[styles.valorAtualNum, { color: isConcluida ? "#34d399" : "#22d3ee" }]}>
+          <Text style={[styles.valorAtualNum, { color: isConcluida ? (isDark ? "#34d399" : "#059669") : (isDark ? "#22d3ee" : "#0284c7") }]}>
             {formatCurrency(goal.currentAmount)}
           </Text>
         </Text>
-        <Text style={styles.separador}>/</Text>
-        <Text style={styles.valorMeta}>{formatCurrency(goal.targetAmount)}</Text>
+        <Text style={[styles.separador, { color: textMuted }]}>/</Text>
+        <Text style={[styles.valorMeta, { color: textMuted }]}>{formatCurrency(goal.targetAmount)}</Text>
       </View>
 
-      {/* Barra de progresso */}
-      <View
-        style={styles.barraContainer}
-        accessibilityRole="progressbar"
-        accessibilityValue={{ min: 0, max: 100, now: goal.percentualConcluido }}
-      >
+      <View style={[styles.barraContainer, { backgroundColor: isDark ? "#334155" : "#e2e8f0" }]}>
         <Animated.View
           style={[
             styles.barraPreenchida,
             {
               width: barraWidth,
-              backgroundColor: isConcluida ? "#059669" : "#7c3aed",
+              backgroundColor: isConcluida ? "#10b981" : "#7c3aed",
             },
           ]}
         />
       </View>
 
-      {/* Rodapé: falta / concluída + Botão Depositar */}
       <View style={styles.rodapeRow}>
         {isConcluida ? (
-          <Text style={styles.concluidaTexto}>🎉 Meta atingida!</Text>
+          <Text style={[styles.concluidaTexto, { color: isDark ? "#34d399" : "#059669" }]}>🎉 Meta atingida!</Text>
         ) : (
-          <Text style={styles.faltaTexto}>
-            Faltam{" "}
-            <Text style={styles.faltaValor}>{formatCurrency(valorRestante)}</Text>
+          <Text style={[styles.faltaTexto, { color: textMuted }]}>
+            Faltam <Text style={[styles.faltaValor, { color: isDark ? "#94a3b8" : "#475569" }]}>{formatCurrency(valorRestante)}</Text>
           </Text>
         )}
 
         {onDepositar && (
           <TouchableOpacity
-            style={styles.depositarBtn}
+            style={[styles.depositarBtn, { backgroundColor: isDark ? "#2e1065" : "#f3e8ff", borderColor: isDark ? "#7c3aed" : "#c084fc" }]}
             onPress={() => onDepositar(goal)}
             activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={`Depositar na caixinha ${goal.title}`}
           >
-            <Text style={styles.depositarBtnText}>💰 Depositar</Text>
+            <Text style={[styles.depositarBtnText, { color: isDark ? "#c4b5fd" : "#7c3aed" }]}>💰 Depositar</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -127,116 +113,23 @@ export function CaixinhaCard({ goal, onDepositar }: CaixinhaCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#0f172a",
-    borderRadius: 16,
-    padding: 16,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: "#1e293b",
-  },
-  cardConcluido: {
-    borderColor: "#065f46",
-  },
-
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  indicadorCor: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#1e293b",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  titulo: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#f1f5f9",
-  },
-  percentualBadge: {
-    fontSize: 11,
-    fontWeight: "800",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-
-  valoresRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 4,
-  },
-  valorAtual: {
-    fontSize: 14,
-  },
-  valorAtualNum: {
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  separador: {
-    fontSize: 14,
-    color: "#475569",
-    marginHorizontal: 4,
-  },
-  valorMeta: {
-    fontSize: 14,
-    color: "#64748b",
-    fontWeight: "500",
-  },
-
-  barraContainer: {
-    height: 8,
-    backgroundColor: "#334155",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  barraPreenchida: {
-    height: "100%",
-    borderRadius: 4,
-  },
-
-  rodapeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 4,
-  },
-  faltaTexto: {
-    fontSize: 12,
-    color: "#64748b",
-  },
-  faltaValor: {
-    color: "#94a3b8",
-    fontWeight: "600",
-  },
-  concluidaTexto: {
-    fontSize: 12,
-    color: "#34d399",
-    fontWeight: "600",
-  },
-
-  depositarBtn: {
-    backgroundColor: "#2e1065",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#7c3aed",
-  },
-  depositarBtnText: {
-    color: "#c4b5fd",
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  card: { borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  indicadorCor: { width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  titulo: { flex: 1, fontSize: 15, fontWeight: "700" },
+  percentualBadge: { fontSize: 11, fontWeight: "800", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  valoresRow: { flexDirection: "row", alignItems: "baseline", gap: 4 },
+  valorAtual: { fontSize: 14 },
+  valorAtualNum: { fontSize: 18, fontWeight: "800", letterSpacing: -0.5 },
+  separador: { fontSize: 14, marginHorizontal: 4 },
+  valorMeta: { fontSize: 14, fontWeight: "500" },
+  barraContainer: { height: 8, borderRadius: 4, overflow: "hidden" },
+  barraPreenchida: { height: "100%", borderRadius: 4 },
+  rodapeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
+  faltaTexto: { fontSize: 12 },
+  faltaValor: { fontWeight: "600" },
+  concluidaTexto: { fontSize: 12, fontWeight: "600" },
+  depositarBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
+  depositarBtnText: { fontSize: 12, fontWeight: "700" },
 });

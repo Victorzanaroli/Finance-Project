@@ -61,16 +61,18 @@ export const obterResumoFinanceiroUseCase = new ObterResumoFinanceiroUseCase(
 );
 
 /** Use case dedicado para listar e agregar caixinhas de poupança. */
-export const listarCaixinhasUseCase = new ListarCaixinhasUseCase(goalRepository);
+export const listarCaixinhasUseCase = new ListarCaixinhasUseCase(goalRepository, uuidGenerator);
 
 /** Use case para depositar na caixinha e gerar transação espelhada. */
 export const depositarCaixinhaUseCase = new DepositarCaixinhaUseCase(
   goalRepository,
-  registrarTransacaoUseCase
+  registrarTransacaoUseCase,
+  transactionRepository
 );
 
 /** Use case para limpar dados de teste e refazer o seed inicial. */
 export const limparDadosUseCase = new LimparDadosUseCase(
   transactionRepository,
-  goalRepository
+  goalRepository,
+  uuidGenerator
 );

@@ -71,7 +71,7 @@ function AvatarPerfil({ uri, onAlterarFoto, carregando, isDark }: AvatarPerfilPr
         {uri ? (
           <Image source={{ uri }} style={avatarStyles.imagem} />
         ) : (
-          <View style={[avatarStyles.placeholder, { backgroundColor: isDark ? "#1e1035" : "#f3e8ff" }]}>
+          <View style={[avatarStyles.placeholder, { backgroundColor: isDark ? "#083344" : "#cffafe" }]}>
             <Text style={avatarStyles.placeholderTexto}>👤</Text>
           </View>
         )}
@@ -89,7 +89,7 @@ function AvatarPerfil({ uri, onAlterarFoto, carregando, isDark }: AvatarPerfilPr
         style={[avatarStyles.alterarBtn, { backgroundColor: isDark ? "#1e293b" : "#e2e8f0" }]}
         onPress={onAlterarFoto}
       >
-        <Text style={[avatarStyles.alterarBtnText, { color: isDark ? "#c4b5fd" : "#6b21a8" }]}>
+        <Text style={[avatarStyles.alterarBtnText, { color: isDark ? "#67e8f9" : "#0891b2" }]}>
           Alterar Foto de Perfil
         </Text>
       </TouchableOpacity>
@@ -100,17 +100,17 @@ function AvatarPerfil({ uri, onAlterarFoto, carregando, isDark }: AvatarPerfilPr
 const avatarStyles = StyleSheet.create({
   container: { alignItems: "center", paddingVertical: 24, gap: 6 },
   wrapper: { position: "relative" },
-  imagem: { width: 104, height: 104, borderRadius: 52, borderWidth: 3, borderColor: "#7c3aed" },
+  imagem: { width: 104, height: 104, borderRadius: 52, borderWidth: 3, borderColor: "#0891b2" },
   placeholder: {
     width: 104, height: 104, borderRadius: 52,
     alignItems: "center", justifyContent: "center",
-    borderWidth: 3, borderColor: "#7c3aed",
+    borderWidth: 3, borderColor: "#0891b2",
   },
   placeholderTexto: { fontSize: 48 },
   editBadge: {
     position: "absolute", bottom: 2, right: 2,
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "#7c3aed",
+    backgroundColor: "#0891b2",
     alignItems: "center", justifyContent: "center",
     borderWidth: 2, borderColor: "#020617",
   },
@@ -180,7 +180,7 @@ function ConfigCard({ item, isDark }: { item: ConfiguracaoItem; isDark: boolean 
           value={item.valor ?? false}
           onValueChange={item.onToggle}
           trackColor={{ false: isDark ? "#1e293b" : "#cbd5e1", true: "#4c1d95" }}
-          thumbColor={item.valor ? "#7c3aed" : "#94a3b8"}
+          thumbColor={item.valor ? "#0891b2" : "#94a3b8"}
         />
       )}
       {item.tipo === "botao" && (
@@ -284,7 +284,7 @@ export default function ProfileScreen() {
       tipo: "toggle",
       valor: isDark,
       onToggle: handleDarkModeToggle,
-      corIcone: "#7c3aed",
+      corIcone: "#0891b2",
     },
     {
       id: "backup",
@@ -298,11 +298,11 @@ export default function ProfileScreen() {
     },
     {
       id: "limpar",
-      icone: "🗑️",
+      icone: "🔄",
       titulo: "Limpar Dados de Teste",
-      descricao: "Executa DELETE nas tabelas e restaura o seed inicial",
+      descricao: "Apagar transações e recriar caixinhas",
       tipo: "botao",
-      danger: true,
+      danger: false,
       onPress: handleLimparDados,
     },
   ];
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 12, fontWeight: "700", color: "#7c3aed",
+    fontSize: 12, fontWeight: "700", color: "#0891b2",
     textTransform: "uppercase", letterSpacing: 1, marginTop: 8,
   },
   section: { gap: 10 },

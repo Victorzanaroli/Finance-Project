@@ -8,7 +8,7 @@
  */
 
 import * as Crypto from "expo-crypto";
-import type { IUuidGenerator } from "../../../application/use-cases/RegistrarTransacaoUseCase";
+import type { IUuidGenerator } from '../../../domain/gateways/IUuidGenerator';
 
 export class ExpoUuidGenerator implements IUuidGenerator {
   gerar(): string {

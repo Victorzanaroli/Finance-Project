@@ -1,8 +1,5 @@
 /**
  * app/(tabs)/calculadoras.tsx
- *
- * Tela: Calculadoras — Inteligente & Tradicional
- * Refatorado com NativeWind (className) suportando Dark & Light Mode.
  */
 
 import {
@@ -11,13 +8,15 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Switch
+  Switch,
+  Platform
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useColorScheme } from "nativewind";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 import {
   calcularProvisaoPeriodo,
@@ -27,7 +26,7 @@ import {
 
 function CalculadoraTradicional() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
   const [visor, setVisor] = useState("0");
@@ -107,7 +106,7 @@ function CalculadoraTradicional() {
     <View className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
       <View className="bg-slate-50 dark:bg-slate-950 rounded-xl p-4 items-end border border-slate-200 dark:border-slate-800 mb-5 h-24 justify-center">
         <Text className="text-base text-slate-500 dark:text-slate-400 mb-1 font-sans">{expressao}</Text>
-        <Text className="text-4xl font-bold text-slate-900 dark:text-slate-100 font-bold" numberOfLines={1} adjustsFontSizeToFit>
+        <Text className="text-4xl font-bold text-slate-900 dark:text-slate-100" numberOfLines={1} adjustsFontSizeToFit>
           {visor}
         </Text>
       </View>
@@ -150,142 +149,251 @@ function CalculadoraTradicional() {
 
 function CalculadoraProvisao() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const [diasAddInicio, setDiasAddInicio] = useState(0);
-  const [diasAddFim, setDiasAddFim] = useState(30);
-  const [apenasDiasUteis, setApenasDiasUteis] = useState(false);
-  const [valorPorDia, setValorPorDia] = useState("0");
-  const [deducoesFixas, setDeducoesFixas] = useState("0");
+  const dtFimBase = new Date();
+  dtFimBase.setDate(dtFimBase.getDate() + 30);
+  
+  const [dataInicial, setDataInicial] = useState(new Date());
+  const [dataFinal, setDataFinal] = useState(dtFimBase);
+  const [showPicker, setShowPicker] = useState<"inicial" | "final" | null>(null);
 
-  const dataInicial = new Date();
-  dataInicial.setDate(dataInicial.getDate() + diasAddInicio);
+  // Lógica customizada (dias ativos e deduções)
+  const [tipoCalculo, setTipoCalculo] = useState<"ganhos" | "gastos">("ganhos");
+  const [diasAtivos, setDiasAtivos] = useState<number[]>([1, 2, 3, 4, 5]); // Padrão: Seg a Sex
+  const [valorPorDia, setValorPorDia] = useState("300");
+  const [deducaoFrequente, setDeducaoFrequente] = useState("140");
+  const [vezesPorSemana, setVezesPorSemana] = useState("2");
+  const [descricaoGasto, setDescricaoGasto] = useState("");
 
-  const dataFinal = new Date();
-  dataFinal.setDate(dataFinal.getDate() + diasAddFim);
+  const DIAS_SEMANA = [
+    { label: "D", val: 0 },
+    { label: "S", val: 1 },
+    { label: "T", val: 2 },
+    { label: "Q", val: 3 },
+    { label: "Q", val: 4 },
+    { label: "S", val: 5 },
+    { label: "S", val: 6 },
+  ];
+
+  const toggleAtividade = (val: number) => {
+    if (diasAtivos.includes(val)) {
+      setDiasAtivos(diasAtivos.filter((d) => d !== val));
+    } else {
+      setDiasAtivos([...diasAtivos, val]);
+    }
+  };
 
   const valorDiarioNum = parseFloat(valorPorDia.replace(",", ".")) || 0;
-  const deducoesNum = parseFloat(deducoesFixas.replace(",", ".")) || 0;
+  const deducaoNum = tipoCalculo === "ganhos" ? (parseFloat(deducaoFrequente.replace(",", ".")) || 0) : 0;
+  const vezesNum = tipoCalculo === "ganhos" ? (parseFloat(vezesPorSemana.replace(",", ".")) || 0) : 0;
 
   const resultado = calcularProvisaoPeriodo({
     dataInicial,
     dataFinal,
-    apenasDiasUteis,
+    diasAtivos,
     valorPorDia: valorDiarioNum,
-    deducoesFixas: deducoesNum,
+    deducaoFrequente: deducaoNum,
+    vezesPorSemana: vezesNum,
   });
 
   const handleLancar = () => {
     if (resultado.resultadoLiquido <= 0) return;
+    const isGasto = tipoCalculo === "gastos";
     router.push({
       pathname: "/lancamentos",
       params: { 
         openModal: "true", 
         amount: String(resultado.resultadoLiquido), 
-        title: `Provisão (${formatarData(dataInicial)} a ${formatarData(dataFinal)})`,
+        title: isGasto ? `Provisão de Gastos (${formatarData(dataInicial)} a ${formatarData(dataFinal)})` : `Provisão de Ganhos (${formatarData(dataInicial)} a ${formatarData(dataFinal)})`,
+        category: isGasto ? (descricaoGasto || "Provisões") : "Salário"
       },
     });
   };
 
-  const renderDataChanger = (label: string, dateObj: Date, value: number, setValue: (val: number) => void) => (
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowPicker(null); 
+    }
+    if (selectedDate) {
+      if (showPicker === "inicial") setDataInicial(selectedDate);
+      if (showPicker === "final") setDataFinal(selectedDate);
+    }
+  };
+
+  const renderDataChanger = (label: string, dateObj: Date, pickerKey: "inicial" | "final") => (
     <View className="flex-col">
       <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 mt-3">{label}</Text>
-      <View className="flex-row items-center bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <TouchableOpacity className="w-12 h-12 items-center justify-center bg-slate-100 dark:bg-slate-800" onPress={() => setValue(value - 1)}>
-          <Text className="text-2xl text-purple-600 dark:text-purple-400 font-light">-</Text>
-        </TouchableOpacity>
-        <Text className="flex-1 text-center text-base font-bold text-slate-900 dark:text-slate-100 border-x border-slate-200 dark:border-slate-700 py-3">{formatarData(dateObj)}</Text>
-        <TouchableOpacity className="w-12 h-12 items-center justify-center bg-slate-100 dark:bg-slate-800" onPress={() => setValue(value + 1)}>
-          <Text className="text-2xl text-purple-600 dark:text-purple-400 font-light">+</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity 
+        className="flex-row items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4"
+        onPress={() => setShowPicker(pickerKey)}
+      >
+        <Text className="text-base font-bold text-slate-900 dark:text-slate-100">{formatarData(dateObj)}</Text>
+        <Ionicons name="calendar-outline" size={20} color={isDark ? "#c4b5fd" : "#7c3aed"} />
+      </TouchableOpacity>
+      
+      {showPicker === pickerKey && (
+        <DateTimePicker
+          value={dateObj}
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+        />
+      )}
     </View>
   );
 
   return (
     <View className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
       <View className="flex-row items-center gap-3 mb-5">
-        <View className="w-11 h-11 rounded-xl bg-purple-100 dark:bg-purple-900/40 items-center justify-center">
-          <Ionicons name="analytics" size={22} color={isDark ? "#c4b5fd" : "#7c3aed"} />
+        <View className="w-11 h-11 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 items-center justify-center">
+          <Ionicons name="trending-up" size={22} color={isDark ? "#22d3ee" : "#0891b2"} />
         </View>
         <View className="flex-1">
-          <Text className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight">Provisão de Período</Text>
-          <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Previsão de ganhos e gastos</Text>
+          <Text className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight">Cálculo de Previsões</Text>
+          <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Configure inatividades e deduções</Text>
         </View>
       </View>
 
-      {renderDataChanger("Data Inicial", dataInicial, diasAddInicio, setDiasAddInicio)}
-      <View className="h-3" />
-      {renderDataChanger("Data Final", dataFinal, diasAddFim, setDiasAddFim)}
-
-      <View className="flex-row justify-between items-center mt-5">
-        <View>
-          <Text className="text-sm text-slate-900 dark:text-slate-100 font-semibold">Apenas Dias Úteis</Text>
-          <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ignora Sábados e Domingos</Text>
-        </View>
-        <Switch
-          value={apenasDiasUteis}
-          onValueChange={setApenasDiasUteis}
-          trackColor={{ false: isDark ? "#334155" : "#e2e8f0", true: "#7c3aed" }}
-          thumbColor="#fff"
-        />
+      <View className="flex-row mx-0 bg-slate-50 dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700 mt-2 mb-2 shadow-sm">
+        <TouchableOpacity
+          className={`flex-1 py-2.5 items-center rounded-lg ${tipoCalculo === "ganhos" ? "bg-emerald-100 dark:bg-emerald-900/50" : ""}`}
+          onPress={() => setTipoCalculo("ganhos")}
+        >
+          <Text className={`text-sm font-semibold ${tipoCalculo === "ganhos" ? "text-emerald-700 dark:text-emerald-300" : "text-slate-500 dark:text-slate-400"}`}>
+            Ganhos
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className={`flex-1 py-2.5 items-center rounded-lg ${tipoCalculo === "gastos" ? "bg-rose-100 dark:bg-rose-900/50" : ""}`}
+          onPress={() => setTipoCalculo("gastos")}
+        >
+          <Text className={`text-sm font-semibold ${tipoCalculo === "gastos" ? "text-rose-700 dark:text-rose-300" : "text-slate-500 dark:text-slate-400"}`}>
+            Gastos
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 mt-4">Valor por Dia (R$)</Text>
+      <View className="flex-row gap-3 mt-3">
+        <View className="flex-1">{renderDataChanger("Início", dataInicial, "inicial")}</View>
+        <View className="flex-1">{renderDataChanger("Fim", dataFinal, "final")}</View>
+      </View>
+
+      <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 mt-5">Dias da semana</Text>
+      <View className="flex-row justify-between">
+        {DIAS_SEMANA.map((d) => {
+          const isAtivo = diasAtivos.includes(d.val);
+          return (
+            <TouchableOpacity
+              key={d.val}
+              onPress={() => toggleAtividade(d.val)}
+              className={`w-10 h-10 rounded-full items-center justify-center border ${isAtivo ? "bg-cyan-600 border-cyan-600" : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"}`}
+            >
+              <Text className={`font-bold ${isAtivo ? "text-white" : "text-slate-500 dark:text-slate-400"}`}>{d.label}</Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+
+      <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 mt-5">
+        {tipoCalculo === "ganhos" ? "Ganhos por Dia (R$)" : "Valor do Gasto (R$)"}
+      </Text>
       <TextInput
-        className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3.5 text-base text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-medium"
+        className="h-14 bg-slate-50 dark:bg-slate-800 rounded-xl px-4 text-base text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-medium w-full"
         value={valorPorDia}
         onChangeText={setValorPorDia}
         keyboardType="decimal-pad"
-        placeholder="0.00"
-        placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
       />
 
-      <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 mt-4">Deduções Fixas no Período (R$)</Text>
-      <TextInput
-        className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3.5 text-base text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-medium"
-        value={deducoesFixas}
-        onChangeText={setDeducoesFixas}
-        keyboardType="decimal-pad"
-        placeholder="0.00"
-        placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
-      />
+      {tipoCalculo === "ganhos" ? (
+        <View className="flex-row gap-4 mt-4">
+          <View className="flex-1">
+            <Text 
+              className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              Deduções frequentes
+            </Text>
+            <TextInput
+              className="h-14 bg-slate-50 dark:bg-slate-800 rounded-xl px-4 text-base text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-medium w-full"
+              value={deducaoFrequente}
+              onChangeText={setDeducaoFrequente}
+              keyboardType="decimal-pad"
+              placeholder="Ex: 140"
+            />
+          </View>
+          <View className="flex-1">
+            <Text 
+              className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              Vezes na semana
+            </Text>
+            <TextInput
+              className="h-14 bg-slate-50 dark:bg-slate-800 rounded-xl px-4 text-base text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-medium w-full"
+              value={vezesPorSemana}
+              onChangeText={setVezesPorSemana}
+              keyboardType="decimal-pad"
+              placeholder="Ex: 2"
+            />
+          </View>
+        </View>
+      ) : (
+        <View className="mt-4">
+          <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Destino / Descrição</Text>
+          <TextInput
+            className="h-14 bg-slate-50 dark:bg-slate-800 rounded-xl px-4 text-base text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-medium w-full"
+            value={descricaoGasto}
+            onChangeText={setDescricaoGasto}
+            placeholder="Ex: Aluguel, Refeição..."
+          />
+        </View>
+      )}
 
       <View className="h-px bg-slate-200 dark:bg-slate-800 my-5" />
 
       <View className="gap-2.5 mb-5">
         <View className="flex-row justify-between">
-          <Text className="text-sm text-slate-500 dark:text-slate-400">Período calculado</Text>
-          <Text className="text-sm text-slate-900 dark:text-slate-100 font-semibold">{resultado.diasCalculados} dias</Text>
+          <Text className="text-sm text-slate-500 dark:text-slate-400">Dias Ativos</Text>
+          <Text className="text-sm text-slate-900 dark:text-slate-100 font-semibold">{resultado.diasCalculados} de {resultado.diasTotais} dias</Text>
         </View>
-        <View className="flex-row justify-between">
-          <Text className="text-sm text-slate-500 dark:text-slate-400">Bruto Gerado</Text>
-          <Text className="text-sm text-slate-900 dark:text-slate-100 font-semibold">{formatCurrency(resultado.faturamentoBruto)}</Text>
-        </View>
-        <View className="flex-row justify-between">
-          <Text className="text-sm text-slate-500 dark:text-slate-400">Deduções Fixas</Text>
-          <Text className="text-sm text-rose-500 font-semibold">- {formatCurrency(resultado.deducoes)}</Text>
-        </View>
+        
+        {tipoCalculo === "ganhos" && (
+          <>
+            <View className="flex-row justify-between">
+              <Text className="text-sm text-slate-500 dark:text-slate-400">Ganho Bruto</Text>
+              <Text className="text-sm text-slate-900 dark:text-slate-100 font-semibold">{formatCurrency(resultado.faturamentoBruto)}</Text>
+            </View>
+            <View className="flex-row justify-between">
+              <Text className="text-sm text-slate-500 dark:text-slate-400">Deduções Totais</Text>
+              <Text className="text-sm text-rose-500 font-semibold">- {formatCurrency(resultado.deducoes)} ({resultado.totalAbastecimentos.toFixed(1)}x)</Text>
+            </View>
+          </>
+        )}
       </View>
 
-      <View className="bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-100 dark:border-purple-800 p-4 items-center mb-5">
-        <Text className="text-xs text-purple-600 dark:text-purple-300 font-bold uppercase tracking-wider">Resultado Líquido</Text>
-        <Text className="text-3xl font-bold text-purple-700 dark:text-purple-400 mt-1 tabular-nums">
+      <View className={`${tipoCalculo === "ganhos" ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800" : "bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800"} rounded-xl border-2 p-4 items-center mb-5`}>
+        <Text className={`text-xs ${tipoCalculo === "ganhos" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} font-bold uppercase tracking-wider`}>
+          {tipoCalculo === "ganhos" ? "Lucro Líquido Projetado" : "Gasto Total Projetado"}
+        </Text>
+        <Text className={`text-3xl font-bold ${tipoCalculo === "ganhos" ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"} mt-1 tabular-nums`}>
           {formatCurrency(resultado.resultadoLiquido)}
         </Text>
       </View>
 
-      <TouchableOpacity className="bg-purple-600 rounded-xl p-4 flex-row items-center justify-center gap-2 shadow-sm" onPress={handleLancar} activeOpacity={0.8}>
+      <TouchableOpacity className={`h-14 ${tipoCalculo === "ganhos" ? "bg-emerald-600" : "bg-rose-600"} rounded-xl p-4 flex-row items-center justify-center gap-2 shadow-sm w-full`} onPress={handleLancar} activeOpacity={0.8}>
         <Ionicons name="save-outline" size={20} color="#fff" />
-        <Text className="text-white font-bold text-base">Salvar Provisão</Text>
+        <Text className="text-white font-bold text-base">{tipoCalculo === "ganhos" ? "Salvar como Receita" : "Salvar como Despesa"}</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 export default function CalculadorasScreen() {
-  const [tabAtiva, setTabAtiva] = useState<"tradicional" | "inteligente">("inteligente");
+  const [tabAtiva, setTabAtiva] = useState<"inteligente" | "tradicional">("inteligente");
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -296,18 +404,18 @@ export default function CalculadorasScreen() {
 
       <View className="flex-row mx-5 bg-white dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-800 mb-4 shadow-sm">
         <TouchableOpacity
-          className={`flex-1 py-2.5 items-center rounded-lg ${tabAtiva === "inteligente" ? "bg-purple-100 dark:bg-purple-900/50" : ""}`}
+          className={`flex-1 py-2.5 items-center rounded-lg ${tabAtiva === "inteligente" ? "bg-cyan-100 dark:bg-cyan-900/50" : ""}`}
           onPress={() => setTabAtiva("inteligente")}
         >
-          <Text className={`text-sm font-semibold ${tabAtiva === "inteligente" ? "text-purple-700 dark:text-purple-300" : "text-slate-500 dark:text-slate-400"}`}>
-            Provisões
+          <Text className={`text-sm font-semibold ${tabAtiva === "inteligente" ? "text-cyan-700 dark:text-cyan-300" : "text-slate-500 dark:text-slate-400"}`}>
+            Previsões
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          className={`flex-1 py-2.5 items-center rounded-lg ${tabAtiva === "tradicional" ? "bg-purple-100 dark:bg-purple-900/50" : ""}`}
+          className={`flex-1 py-2.5 items-center rounded-lg ${tabAtiva === "tradicional" ? "bg-cyan-100 dark:bg-cyan-900/50" : ""}`}
           onPress={() => setTabAtiva("tradicional")}
         >
-          <Text className={`text-sm font-semibold ${tabAtiva === "tradicional" ? "text-purple-700 dark:text-purple-300" : "text-slate-500 dark:text-slate-400"}`}>
+          <Text className={`text-sm font-semibold ${tabAtiva === "tradicional" ? "text-cyan-700 dark:text-cyan-300" : "text-slate-500 dark:text-slate-400"}`}>
             Tradicional
           </Text>
         </TouchableOpacity>

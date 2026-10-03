@@ -1,14 +1,8 @@
 /**
  * app/(tabs)/index.tsx
  *
- * Tela Inicial (Dashboard) — Boundary de UI.
- *
- * HIERARQUIA VERTICAL EXATA REQUISITADA:
- *  1. Cabeçalho (Mês atual e "Caixa Livre" com saldo destacado em roxo text-purple-500)
- *  2. Resumo de Fluxo (Cartões de Receitas e Despesas lado a lado)
- *  3. Distribuição (Barra de Sugestão 20/80)
- *  4. Metas de Poupança (Minhas Caixinhas com botão funcional de depósito)
- *  5. Gráfico Analítico (Gráfico de Pizza por último, com porcentagens / absolute={true})
+ * Tela Inicial (Dashboard) — Refatorada com NativeWind (Dark/Light mode).
+ * Design Super Premium (Glassmorphism, Ciano, Roxo) inspirado em Fintechs.
  */
 
 import {
@@ -18,23 +12,25 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
-  StyleSheet,
   Dimensions,
   Modal,
   TextInput,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState, useCallback, useMemo } from "react";
-import { PieChart } from "react-native-chart-kit";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useColorScheme } from "nativewind";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { useDashboardData } from "../../src/adapters/hooks/useDashboardData";
 import { useCaixinhas } from "../../src/adapters/hooks/useCaixinhas";
 import { SummaryCard } from "../../src/adapters/components/SummaryCard";
 import { DistributionBar } from "../../src/adapters/components/DistributionBar";
 import { CaixinhaCard } from "../../src/adapters/components/CaixinhaCard";
+import { DonutChart } from "../../src/adapters/components/DonutChart";
 import type { Goal } from "../../src/domain/entities/Goal";
 
 const { width } = Dimensions.get("window");
@@ -47,10 +43,6 @@ function formatCurrency(value: number): string {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Modal de Depósito em Caixinha
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface ModalDepositoProps {
   goal: Goal | null;
   visible: boolean;
@@ -59,6 +51,9 @@ interface ModalDepositoProps {
 }
 
 function ModalDeposito({ goal, visible, onClose, onConfirm }: ModalDepositoProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   const [valorText, setValorText] = useState("");
   const [categoria, setCategoria] = useState("Poupança");
   const [carregando, setCarregando] = useState(false);
@@ -89,195 +84,91 @@ function ModalDeposito({ goal, visible, onClose, onConfirm }: ModalDepositoProps
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
       <KeyboardAvoidingView
-        style={depStyles.overlay}
+        className="flex-1 justify-end bg-slate-900/50 dark:bg-slate-950/80"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={depStyles.cardModal}>
-          <View style={depStyles.header}>
-            <Text style={depStyles.titulo}>Depositar na Caixinha</Text>
-            <TouchableOpacity onPress={onClose} style={depStyles.closeBtn}>
-              <Text style={depStyles.closeText}>✕</Text>
+        <View className="bg-white dark:bg-slate-900 rounded-t-3xl p-6 border-t border-slate-200 dark:border-slate-800">
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="text-xl font-bold text-slate-900 dark:text-slate-100">Depositar na Caixinha</Text>
+            <TouchableOpacity onPress={onClose} className="p-1">
+              <MaterialCommunityIcons name="close" size={24} color={isDark ? "#94a3b8" : "#64748b"} />
             </TouchableOpacity>
           </View>
 
-          <Text style={depStyles.goalTitle}>🪙 {goal.title}</Text>
-          <Text style={depStyles.sub}>
+          <Text className="text-base font-bold text-cyan-600 dark:text-cyan-400 mt-1">🪙 {goal.title}</Text>
+          <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
             Saldo atual: {formatCurrency(goal.currentAmount)} / Meta: {formatCurrency(goal.targetAmount)}
           </Text>
 
-          <Text style={depStyles.label}>Valor do Depósito (R$)</Text>
+          <Text className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Valor do Depósito (R$)</Text>
           <TextInput
-            style={depStyles.input}
+            className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 text-slate-900 dark:text-slate-100 text-xl font-bold border border-slate-200 dark:border-slate-700 mb-4"
             value={valorText}
             onChangeText={setValorText}
             placeholder="0.00"
-            placeholderTextColor="#475569"
+            placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
             keyboardType="decimal-pad"
             autoFocus
           />
 
-          <Text style={depStyles.label}>Categoria para Lançamento</Text>
-          <View style={depStyles.catSelector}>
+          <Text className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Categoria para Lançamento</Text>
+          <View className="flex-row gap-2 mb-4">
             <TouchableOpacity
-              style={[depStyles.catBtn, categoria === "Poupança" && depStyles.catBtnActive]}
+              className={`flex-1 py-3 px-2 rounded-xl items-center border ${categoria === "Poupança" ? "bg-cyan-100 dark:bg-cyan-900/50 border-cyan-300 dark:border-cyan-700" : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"}`}
               onPress={() => setCategoria("Poupança")}
             >
-              <Text style={[depStyles.catText, categoria === "Poupança" && depStyles.catTextActive]}>
+              <Text className={`text-sm font-semibold ${categoria === "Poupança" ? "text-cyan-700 dark:text-cyan-300" : "text-slate-500 dark:text-slate-400"}`}>
                 🪙 Poupança
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={[depStyles.catBtn, categoria === "Reserva da Moto" && depStyles.catBtnActive]}
+              className={`flex-1 py-3 px-2 rounded-xl items-center border ${categoria === "Reserva da Moto" ? "bg-cyan-100 dark:bg-cyan-900/50 border-cyan-300 dark:border-cyan-700" : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"}`}
               onPress={() => setCategoria("Reserva da Moto")}
             >
-              <Text style={[depStyles.catText, categoria === "Reserva da Moto" && depStyles.catTextActive]}>
-                🏍️ Reserva da Moto
+              <Text className={`text-sm font-semibold ${categoria === "Reserva da Moto" ? "text-cyan-700 dark:text-cyan-300" : "text-slate-500 dark:text-slate-400"}`}>
+                🏍️ Manutenção
               </Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={depStyles.infoBox}>
-            ℹ️ O depósito atualizará a meta e criará automaticamente uma transação de saída
-            categorizada como <Text style={{ fontWeight: "700" }}>{categoria}</Text>, deduzindo do Caixa Livre.
-          </Text>
+          <View className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 p-3 rounded-xl mb-4">
+            <Text className="text-xs text-slate-600 dark:text-slate-400 leading-5">
+              ℹ️ O depósito atualizará a meta e deduzirá automaticamente do Caixa Livre na categoria <Text className="font-bold">{categoria}</Text>.
+            </Text>
+          </View>
 
-          {erro && <Text style={depStyles.erroText}>⚠️ {erro}</Text>}
+          {erro && <Text className="text-sm text-rose-500 mb-2">⚠️ {erro}</Text>}
 
           <TouchableOpacity
-            style={[depStyles.submitBtn, carregando && depStyles.submitDisabled]}
+            className={`bg-cyan-600 py-4 rounded-xl items-center shadow-lg shadow-cyan-500/50 ${carregando ? "opacity-50" : ""}`}
             onPress={handleConfirmar}
             disabled={carregando}
           >
             {carregando ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={depStyles.submitText}>✓ Confirmar Depósito</Text>
+              <Text className="text-white font-bold text-base">✓ Confirmar Depósito</Text>
             )}
           </TouchableOpacity>
+          <View className="h-6" />
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-const depStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(2, 6, 23, 0.75)",
-    justifyContent: "flex-end",
-  },
-  cardModal: {
-    backgroundColor: "#0f172a",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#1e293b",
-  },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  titulo: { fontSize: 18, fontWeight: "800", color: "#f1f5f9" },
-  closeBtn: { padding: 4 },
-  closeText: { fontSize: 16, color: "#94a3b8", fontWeight: "700" },
-  goalTitle: { fontSize: 16, fontWeight: "700", color: "#c4b5fd", marginTop: 4 },
-  sub: { fontSize: 13, color: "#64748b" },
-  label: { fontSize: 12, fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 8 },
-  input: {
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    padding: 14,
-    color: "#f1f5f9",
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  catSelector: { flexDirection: "row", gap: 8 },
-  catBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    backgroundColor: "#1e293b",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  catBtnActive: {
-    backgroundColor: "#2e1065",
-    borderColor: "#7c3aed",
-  },
-  catText: { fontSize: 12, color: "#94a3b8", fontWeight: "600" },
-  catTextActive: { color: "#c4b5fd", fontWeight: "700" },
-  infoBox: {
-    fontSize: 12,
-    color: "#94a3b8",
-    backgroundColor: "#1e1035",
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#4c1d95",
-    lineHeight: 18,
-  },
-  erroText: { color: "#f43f5e", fontSize: 13 },
-  submitBtn: {
-    backgroundColor: "#7c3aed",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  submitDisabled: { opacity: 0.5 },
-  submitText: { color: "#ffffff", fontWeight: "800", fontSize: 15 },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Estados de Loading e Erro
-// ─────────────────────────────────────────────────────────────────────────────
-
-function LoadingState() {
-  return (
-    <View style={styles.centerState}>
-      <ActivityIndicator size="large" color="#7c3aed" />
-      <Text style={styles.loadingText}>Carregando painel financeiro...</Text>
-    </View>
-  );
-}
-
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <View style={styles.centerState}>
-      <Text style={styles.errorEmoji}>⚠️</Text>
-      <Text style={styles.errorText}>{message}</Text>
-      <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-        <Text style={styles.retryText}>Tentar novamente</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Componente Principal: Dashboard
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function DashboardScreen() {
+  const router = useRouter();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
+
   const [refreshing, setRefreshing] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [depositModalVisible, setDepositModalVisible] = useState(false);
 
-  const {
-    dados,
-    isLoading: loadingFinanceiro,
-    error: errorFinanceiro,
-    refetch: refetchFinanceiro,
-  } = useDashboardData();
-
-  const {
-    resultado: resultadoCaixinhas,
-    isLoading: loadingCaixinhas,
-    error: errorCaixinhas,
-    refetch: refetchCaixinhas,
-    depositar,
-  } = useCaixinhas();
+  const { dados, isLoading: loadingFinanceiro, error: errorFinanceiro, refetch: refetchFinanceiro } = useDashboardData();
+  const { resultado: resultadoCaixinhas, isLoading: loadingCaixinhas, error: errorCaixinhas, refetch: refetchCaixinhas, depositar } = useCaixinhas();
 
   const isLoading = loadingFinanceiro || loadingCaixinhas;
   const error = errorFinanceiro ?? errorCaixinhas;
@@ -305,7 +196,6 @@ export default function DashboardScreen() {
     }
   };
 
-  // Dados para o Gráfico de Pizza (com porcentagens diretas)
   const pieChartData = useMemo(() => {
     const fixas = dados?.totalDespesasFixas ?? 0;
     const variaveis = dados?.totalDespesasVariaveis ?? 0;
@@ -313,96 +203,38 @@ export default function DashboardScreen() {
 
     if (total > 0) {
       return [
-        {
-          name: "Alimentação (35%)",
-          population: Math.round(variaveis * 0.45) || 350,
-          color: "#f97316",
-          legendFontColor: "#cbd5e1",
-          legendFontSize: 12,
-        },
-        {
-          name: "Faculdade (25%)",
-          population: Math.round(fixas * 0.5) || 250,
-          color: "#a855f7",
-          legendFontColor: "#cbd5e1",
-          legendFontSize: 12,
-        },
-        {
-          name: "Casa (20%)",
-          population: Math.round(fixas * 0.5) || 200,
-          color: "#3b82f6",
-          legendFontColor: "#cbd5e1",
-          legendFontSize: 12,
-        },
-        {
-          name: "Lazer (12%)",
-          population: Math.round(variaveis * 0.35) || 120,
-          color: "#ec4899",
-          legendFontColor: "#cbd5e1",
-          legendFontSize: 12,
-        },
-        {
-          name: "Poupança (8%)",
-          population: Math.round(variaveis * 0.2) || 80,
-          color: "#10b981",
-          legendFontColor: "#cbd5e1",
-          legendFontSize: 12,
-        },
+        { key: "1", label: "Alimentação", value: Math.round(variaveis * 0.45) || 350, color: "#f97316" }, // Laranja
+        { key: "2", label: "Despesas Fixas", value: Math.round(fixas * 0.5) || 250, color: "#06b6d4" }, // Ciano
+        { key: "3", label: "Lazer", value: Math.round(variaveis * 0.35) || 120, color: "#a855f7" }, // Roxo
+        { key: "4", label: "Poupança", value: Math.round(variaveis * 0.2) || 80, color: "#10b981" }, // Verde
+        { key: "5", label: "Outros", value: Math.round(fixas * 0.5) || 200, color: "#3b82f6" }, // Azul
       ];
     }
-
-    return [
-      {
-        name: "Alimentação (35%)",
-        population: 350,
-        color: "#f97316",
-        legendFontColor: "#cbd5e1",
-        legendFontSize: 12,
-      },
-      {
-        name: "Faculdade (25%)",
-        population: 250,
-        color: "#a855f7",
-        legendFontColor: "#cbd5e1",
-        legendFontSize: 12,
-      },
-      {
-        name: "Casa (20%)",
-        population: 200,
-        color: "#3b82f6",
-        legendFontColor: "#cbd5e1",
-        legendFontSize: 12,
-      },
-      {
-        name: "Lazer (12%)",
-        population: 120,
-        color: "#ec4899",
-        legendFontColor: "#cbd5e1",
-        legendFontSize: 12,
-      },
-      {
-        name: "Poupança (8%)",
-        population: 80,
-        color: "#10b981",
-        legendFontColor: "#cbd5e1",
-        legendFontSize: 12,
-      },
-    ];
+    return [];
   }, [dados]);
 
   if (isLoading && !dados) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <LoadingState />
-      </SafeAreaView>
+      <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+        <View className="flex-1 justify-center items-center" style={{ paddingTop: insets.top }}>
+          <ActivityIndicator size="large" color="#06b6d4" />
+          <Text className="text-slate-500 mt-3 font-medium">Carregando inteligência financeira...</Text>
+        </View>
+      </View>
     );
   }
 
   if (error && !dados) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <ErrorState message={error} onRetry={handleRetry} />
-      </SafeAreaView>
+      <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+        <View className="flex-1 justify-center items-center p-8" style={{ paddingTop: insets.top }}>
+          <Text className="text-5xl mb-4">⚠️</Text>
+          <Text className="text-rose-500 text-center mb-6 font-semibold">{error}</Text>
+          <TouchableOpacity className="bg-cyan-600 px-6 py-4 rounded-xl shadow-lg shadow-cyan-500/30" onPress={handleRetry}>
+            <Text className="text-white font-bold">Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   }
 
@@ -411,213 +243,141 @@ export default function DashboardScreen() {
   const isSaldoNegativo = saldoLivre < 0;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="#7c3aed"
-            colors={["#7c3aed"]}
-          />
-        }
-      >
-        {/* ── 1. CABEÇALHO: Mês atual e "Caixa Livre" (Saldo em roxo #a855f7 / text-purple-500) ── */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerMes}>{dados?.mesLabel ?? "Setembro 2025"}</Text>
-            <Text style={styles.headerSubtitulo}>Visão Geral Financeira</Text>
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+      
+      <View className="flex-1" style={{ paddingTop: insets.top }}>
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ padding: 20, paddingTop: 10, gap: 16 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#06b6d4" colors={["#06b6d4"]} />}
+        >
+          {/* CABEÇALHO */}
+          <View className="flex-row justify-between items-center mb-2">
+            <View>
+              <Text className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Olá, Victor! 👋</Text>
+              <Text className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-1">{dados?.mesLabel ?? "Mês Atual"}</Text>
+            </View>
+            <View className="flex-row gap-3 items-center">
+              <TouchableOpacity onPress={() => router.push("/profile")}>
+                <View className="w-12 h-12 rounded-full bg-cyan-100 dark:bg-cyan-900/40 items-center justify-center border border-cyan-200 dark:border-cyan-800 shadow-md shadow-cyan-500/20 overflow-hidden">
+                  <Ionicons name="person" size={24} color={isDark ? "#22d3ee" : "#0891b2"} />
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.syncIndicator}>
-            <View style={styles.syncDot} />
-            <Text style={styles.syncText}>SQLite Ok</Text>
-          </View>
-        </View>
 
-        <View style={styles.caixaLivreContainer}>
-          <Text style={styles.caixaLivreLabel}>💰 Caixa Livre</Text>
-          {/* Saldo destacado obrigatoriamente em Roxo text-purple-500 (#a855f7) */}
-          <Text
-            style={[
-              styles.caixaLivreValor,
-              { color: isSaldoNegativo ? "#f43f5e" : "#a855f7" },
-            ]}
-            adjustsFontSizeToFit
-            numberOfLines={1}
+          {/* CAIXA LIVRE (GLASSMORPHISM & CIANO) */}
+          <LinearGradient
+            colors={isDark ? ['rgba(6, 182, 212, 0.15)', 'rgba(124, 58, 237, 0.15)'] : ['#ffffff', '#ffffff']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ overflow: 'hidden' }}
+            className={`rounded-[32px] p-6 shadow-lg relative border ${isDark ? 'border-cyan-500/30' : 'border-slate-200 shadow-slate-200/50'}`}
           >
-            {formatCurrency(saldoLivre)}
-          </Text>
-          <Text style={styles.caixaLivreSublabel}>
-            {isSaldoNegativo
-              ? "⚠️ Despesas superam as receitas deste mês"
-              : "Saldo disponível para gastos ou poupança"}
-          </Text>
-        </View>
+            {/* Decorações Absolutas */}
+            <View className="absolute -top-10 -right-10 opacity-10">
+              <MaterialCommunityIcons name="hexagon-multiple" size={200} color={isDark ? "#22d3ee" : "#0891b2"} />
+            </View>
 
-        {/* ── 2. RESUMO DE FLUXO: Cartões de Receitas e Despesas lado a lado ── */}
-        <View style={styles.summaryRow}>
-          <SummaryCard
-            icon="📈"
-            label="Receitas"
-            valor={formatCurrency(dados?.totalReceitas ?? 0)}
-            corValor="#34d399"
-            corBorda="#34d399"
-          />
-          <View style={styles.summaryGap} />
-          <SummaryCard
-            icon="📉"
-            label="Despesas"
-            valor={formatCurrency(totalDespesas)}
-            corValor="#f43f5e"
-            corBorda="#f43f5e"
-            sublabel={`Fixas: ${formatCurrency(dados?.totalDespesasFixas ?? 0)}`}
-          />
-        </View>
+            <Text className="text-xs font-bold text-slate-500 dark:text-cyan-200/70 uppercase tracking-widest">💰 Meu Saldo Atual</Text>
+            <Text className={`text-[42px] font-extrabold tracking-tighter mt-1 ${isSaldoNegativo ? "text-rose-500" : isDark ? "text-white" : "text-slate-900"}`} adjustsFontSizeToFit numberOfLines={1}>
+              {formatCurrency(saldoLivre)}
+            </Text>
+            <Text className="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 font-medium">
+              {isSaldoNegativo ? "⚠️ Despesas superam as receitas deste mês" : "Saldo disponível para uso imediato"}
+            </Text>
 
-        {/* ── 3. DISTRIBUIÇÃO: Barra Sugestão de Distribuição (20/80) ── */}
-        <DistributionBar saldoLivre={saldoLivre} formatCurrency={formatCurrency} />
+            {/* Ações Rápidas (Glassmorphism effect) */}
+            <View className="flex-row gap-3 mt-2">
+              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3.5 rounded-2xl items-center border border-black/5 dark:border-white/10" onPress={() => router.push("/lancamentos")}>
+                <Ionicons name="add-outline" size={24} color={isDark ? "#fff" : "#0f172a"} />
+                <Text className={`text-[11px] mt-1.5 font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>Despesa</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3.5 rounded-2xl items-center border border-black/5 dark:border-white/10" onPress={() => router.push("/calculadoras")}>
+                <Ionicons name="calculator-outline" size={24} color={isDark ? "#fff" : "#0f172a"} />
+                <Text className={`text-[11px] mt-1.5 font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>Previsões</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3.5 rounded-2xl items-center border border-cyan-400 dark:border-cyan-400 shadow-sm" onPress={() => router.push("/lancamentos?openScan=true")}>
+                <Ionicons name="scan-outline" size={24} color={isDark ? "#22d3ee" : "#0891b2"} />
+                <Text className={`text-[11px] mt-1.5 font-bold ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>Escanear</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
 
-        {/* ── 4. METAS DE POUPANÇA (MINHAS CAIXINHAS): Lista interativa com botão de depósito ── */}
-        <View style={styles.sectionHeader}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={styles.sectionTitle}>Minhas Caixinhas</Text>
-            <MaterialCommunityIcons name="piggy-bank" size={22} color="#a855f7" />
+          {/* RESUMO (CARDS) */}
+          <View className="flex-row gap-3 mt-1">
+            <View className="flex-1 bg-white/80 dark:bg-slate-900/60 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm backdrop-blur-md">
+              <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">📉 Gastos</Text>
+              <Text className="text-xl font-extrabold text-rose-500 dark:text-rose-400 mb-1" numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(totalDespesas)}</Text>
+              <Text className="text-[10px] font-medium text-slate-400">Fixo: {formatCurrency(dados?.totalDespesasFixas ?? 0)}</Text>
+            </View>
+            <View className="flex-1 bg-white/80 dark:bg-slate-900/60 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm backdrop-blur-md">
+              <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">📈 Ganhos</Text>
+              <Text className="text-xl font-extrabold text-emerald-500 dark:text-emerald-400 mb-1" numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(dados?.totalReceitas ?? 0)}</Text>
+              <Text className="text-[10px] font-medium text-slate-400">Total apurado</Text>
+            </View>
           </View>
-          {resultadoCaixinhas && resultadoCaixinhas.caixinhas.length > 0 && (
-            <View style={styles.caixinhasMetrics}>
-              <Text style={styles.caixinhasMetricValor}>
-                {resultadoCaixinhas.percentualGeral}%
-              </Text>
-              <Text style={styles.caixinhasMetricLabel}>Meta Geral</Text>
+
+          {/* DISTRIBUIÇÃO */}
+          <DistributionBar saldoLivre={saldoLivre} formatCurrency={formatCurrency} />
+
+          {/* GRÁFICO (NOVO DONUT CHART) */}
+          {pieChartData.length > 0 && (
+            <View className="bg-white/90 dark:bg-slate-900/80 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-sm mt-2 items-center backdrop-blur-lg">
+              <View className="w-full mb-6">
+                <Text className="text-lg font-extrabold text-slate-900 dark:text-white">Inteligência de Gastos 🧠</Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Onde seu dinheiro está indo este mês</Text>
+              </View>
+              
+              <View className="flex-row items-center justify-between w-full">
+                {/* Gráfico à esquerda */}
+                <View className="flex-1 items-center justify-center">
+                   <DonutChart data={pieChartData} size={160} />
+                </View>
+
+                {/* Legenda Customizada à direita */}
+                <View className="flex-1 pl-4 gap-4 justify-center">
+                  {pieChartData.map((item) => (
+                    <View key={item.key} className="flex-row items-center gap-2.5">
+                      <View className="w-3.5 h-3.5 rounded-md" style={{ backgroundColor: item.color }} />
+                      <Text className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 flex-1">{item.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
           )}
-        </View>
 
-        {loadingCaixinhas && !resultadoCaixinhas ? (
-          <ActivityIndicator color="#7c3aed" style={{ marginVertical: 20 }} />
-        ) : resultadoCaixinhas?.caixinhas.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🪙</Text>
-            <Text style={styles.emptyTitle}>Nenhuma caixinha cadastrada</Text>
-            <Text style={styles.emptySubtitle}>
-              Crie suas primeiras metas para acompanhar seu progresso.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.caixinhasList}>
-            {resultadoCaixinhas?.caixinhas.map((goal) => (
-              <CaixinhaCard key={goal.id} goal={goal} onDepositar={handleAbrirDeposito} />
-            ))}
-          </View>
-        )}
-
-        {/* ── 5. GRÁFICO ANALÍTICO: Gráfico de Pizza por último com % e absolute={true} ── */}
-        <View style={styles.chartContainer}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>Gráfico Analítico de Gastos 📊</Text>
-            <Text style={styles.chartSub}>Distribuição percentual de despesas</Text>
+          {/* METAS / CAIXINHAS */}
+          <View className="flex-row justify-between items-center mt-5 mb-1">
+            <View className="flex-row items-center gap-2">
+              <Text className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Cofres e Metas</Text>
+              <MaterialCommunityIcons name="safe" size={22} color={isDark ? "#22d3ee" : "#0891b2"} />
+            </View>
           </View>
 
-          <PieChart
-            data={pieChartData}
-            width={width - 56}
-            height={200}
-            chartConfig={{
-              backgroundColor: "#0f172a",
-              backgroundGradientFrom: "#0f172a",
-              backgroundGradientTo: "#0f172a",
-              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            }}
-            accessor={"population"}
-            backgroundColor={"transparent"}
-            paddingLeft={"15"}
-            center={[10, 0]}
-            absolute={true}
-          />
-        </View>
+          {loadingCaixinhas && !resultadoCaixinhas ? (
+            <ActivityIndicator color="#06b6d4" className="my-5" />
+          ) : resultadoCaixinhas?.caixinhas.length === 0 ? (
+            <View className="bg-white/80 dark:bg-slate-900/60 rounded-2xl p-8 items-center border border-slate-200 dark:border-slate-800 border-dashed">
+              <Text className="text-4xl mb-2">🪙</Text>
+              <Text className="text-base font-bold text-slate-900 dark:text-white">Nenhuma reserva criada</Text>
+              <Text className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1">Crie metas para poupar dinheiro e atingir objetivos.</Text>
+            </View>
+          ) : (
+            <View className="gap-3">
+              {resultadoCaixinhas?.caixinhas.map((goal) => (
+                <CaixinhaCard key={goal.id} goal={goal} onDepositar={handleAbrirDeposito} />
+              ))}
+            </View>
+          )}
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          <View className="h-10" />
+        </ScrollView>
 
-      {/* Modal de Depósito em Caixinha */}
-      <ModalDeposito
-        goal={selectedGoal}
-        visible={depositModalVisible}
-        onClose={() => setDepositModalVisible(false)}
-        onConfirm={handleConfirmarDeposito}
-      />
-    </SafeAreaView>
+        <ModalDeposito goal={selectedGoal} visible={depositModalVisible} onClose={() => setDepositModalVisible(false)} onConfirm={handleConfirmarDeposito} />
+      </View>
+    </View>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Estilos Globais do Dashboard
-// ─────────────────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#020617" },
-  scrollView: { flex: 1, backgroundColor: "#020617" },
-  scrollContent: { padding: 18, paddingTop: 8, gap: 14 },
-
-  centerState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40, gap: 12 },
-  loadingText: { color: "#64748b", fontSize: 14 },
-  errorEmoji: { fontSize: 40 },
-  errorText: { color: "#f43f5e", fontSize: 14, textAlign: "center" },
-  retryButton: { backgroundColor: "#7c3aed", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, marginTop: 8 },
-  retryText: { color: "#fff", fontWeight: "700" },
-
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingBottom: 4 },
-  headerMes: { fontSize: 20, fontWeight: "800", color: "#f1f5f9", letterSpacing: -0.5 },
-  headerSubtitulo: { fontSize: 12, color: "#64748b", marginTop: 2 },
-  syncIndicator: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#0f172a", paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 20, borderWidth: 1, borderColor: "#1e293b",
-  },
-  syncDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34d399" },
-  syncText: { fontSize: 11, color: "#94a3b8", fontWeight: "600" },
-
-  caixaLivreContainer: {
-    backgroundColor: "#0f172a", borderRadius: 20, padding: 24,
-    alignItems: "center", gap: 6, borderWidth: 1, borderColor: "#1e293b",
-  },
-  caixaLivreLabel: { fontSize: 12, fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1.5 },
-  caixaLivreValor: { fontSize: 42, fontWeight: "800", letterSpacing: -2 },
-  caixaLivreSublabel: { fontSize: 12, color: "#64748b", textAlign: "center" },
-
-  summaryRow: { flexDirection: "row" },
-  summaryGap: { width: 10 },
-
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 6 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#f1f5f9", letterSpacing: -0.3 },
-  sectionSubtitle: { fontSize: 12, color: "#64748b", marginTop: 2 },
-  caixinhasMetrics: {
-    backgroundColor: "#1e1035", borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 6,
-    alignItems: "center", borderWidth: 1, borderColor: "#4c1d95",
-  },
-  caixinhasMetricValor: { fontSize: 18, fontWeight: "800", color: "#c4b5fd" },
-  caixinhasMetricLabel: { fontSize: 10, color: "#7c3aed", fontWeight: "600", textTransform: "uppercase" },
-
-  caixinhasList: { gap: 10 },
-
-  chartContainer: {
-    backgroundColor: "#0f172a", borderRadius: 20, padding: 16,
-    borderWidth: 1, borderColor: "#1e293b", alignItems: "center",
-  },
-  chartHeader: { width: "100%", marginBottom: 8 },
-  chartTitle: { fontSize: 16, fontWeight: "800", color: "#f1f5f9" },
-  chartSub: { fontSize: 12, color: "#64748b", marginTop: 2 },
-
-  emptyState: {
-    backgroundColor: "#0f172a", borderRadius: 16, padding: 32,
-    alignItems: "center", gap: 8, borderWidth: 1,
-    borderColor: "#1e293b", borderStyle: "dashed",
-  },
-  emptyEmoji: { fontSize: 36, marginBottom: 4 },
-  emptyTitle: { fontSize: 15, fontWeight: "700", color: "#f1f5f9" },
-  emptySubtitle: { fontSize: 12, color: "#64748b", textAlign: "center", lineHeight: 18 },
-});

@@ -1,34 +1,31 @@
 /**
  * src/adapters/calculadoras/calculos.ts
  *
- * Camada: Adapters — Funções de cálculo PURAS das Calculadoras.
- *
  * Módulo Genérico de Cálculos Inteligentes
  */
 
 export interface ParametrosProvisao {
   dataInicial: Date;
   dataFinal: Date;
-  apenasDiasUteis: boolean;
+  diasAtivos: number[]; // Array de inteiros (0=Dom, 1=Seg, ..., 6=Sab) marcados como trabalhados
   valorPorDia: number;
-  deducoesFixas: number;
+  deducaoFrequente: number;
+  vezesPorSemana: number;
 }
 
 export interface ResultadoProvisao {
   diasTotais: number;
-  diasCalculados: number; // quantos dias entraram na conta (ex: só dias úteis)
+  diasCalculados: number; // Quantos dias entraram na conta (ignorando as folgas)
   faturamentoBruto: number;
+  totalAbastecimentos: number;
   deducoes: number;
   resultadoLiquido: number;
 }
 
-/**
- * Calcula a provisão de um período genérico.
- */
 export function calcularProvisaoPeriodo(params: ParametrosProvisao): ResultadoProvisao {
-  const { dataInicial, dataFinal, apenasDiasUteis, valorPorDia, deducoesFixas } = params;
+  const { dataInicial, dataFinal, diasAtivos, valorPorDia, deducaoFrequente, vezesPorSemana } = params;
 
-  // Garantir que as datas não têm horas para não dar problema no getTime
+  // Garantir que as datas não têm horas
   const inicio = new Date(dataInicial.getFullYear(), dataInicial.getMonth(), dataInicial.getDate());
   const fim = new Date(dataFinal.getFullYear(), dataFinal.getMonth(), dataFinal.getDate());
 
@@ -39,9 +36,8 @@ export function calcularProvisaoPeriodo(params: ParametrosProvisao): ResultadoPr
   while (cursor <= fim) {
     diasTotais++;
     const diaSemana = cursor.getDay();
-    const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
-
-    if (!apenasDiasUteis || !isFimDeSemana) {
+    
+    if (diasAtivos.includes(diaSemana)) {
       diasCalculados++;
     }
     
@@ -49,19 +45,30 @@ export function calcularProvisaoPeriodo(params: ParametrosProvisao): ResultadoPr
   }
 
   const faturamentoBruto = diasCalculados * valorPorDia;
-  const deducoes = deducoesFixas;
+  
+  // A quantidade de semanas trabalhadas = (dias calculados / dias de trabalho na semana)
+  const diasTrabalhoNaSemana = diasAtivos.length;
+  let deducoes = 0;
+  let totalAbastecimentos = 0;
+
+  if (diasTrabalhoNaSemana > 0 && vezesPorSemana > 0 && deducaoFrequente > 0) {
+    const semanasTrabalhadas = diasCalculados / diasTrabalhoNaSemana;
+    totalAbastecimentos = semanasTrabalhadas * vezesPorSemana;
+    deducoes = totalAbastecimentos * deducaoFrequente;
+  }
+
   const resultadoLiquido = faturamentoBruto - deducoes;
 
   return {
     diasTotais,
     diasCalculados,
     faturamentoBruto,
+    totalAbastecimentos,
     deducoes,
     resultadoLiquido,
   };
 }
 
-// Helpers de Formatação
 export const MESES_NOMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
