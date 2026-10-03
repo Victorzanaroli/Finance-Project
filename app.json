@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Controle Financeiro",
+    "slug": "projeto-financas",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#020617",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.victordev.financas"
+    },
+    "android": {
+      "package": "com.victordev.financas"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Precisamos da câmera para escanear suas contas e faturas."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Precisamos de acesso à galeria para alterar sua foto de perfil."
+        }
+      ]
+    ],
+    "scheme": "financas",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
