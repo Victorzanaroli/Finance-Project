@@ -1,15 +1,16 @@
-# 💰 Controle Financeiro Pessoal (Uber & Estudante)
+# 💰 Vault: Gestão Financeira Inteligente
 
-App mobile de controle financeiro pessoal, projetado para o dia a dia acelerado de um motorista de app e estudante universitário. Construído com **Expo SDK 50+**, **React Native**, **Expo Router**, **SQLite + Drizzle ORM** (offline-first) e **NativeWind** (Tailwind Dark Mode).
+App mobile de controle financeiro, projetado para o dia a dia acelerado de profissionais independentes, freelancers e pessoas com rotinas dinâmicas. Construído com **Expo SDK 50+**, **React Native**, **Expo Router**, **SQLite + Drizzle ORM** (offline-first) e **NativeWind** (Tailwind Dark & Light Mode).
 
 ---
 
 ## 🎯 Contexto e Propósito
 
-Este não é mais um aplicativo genérico de finanças. Ele foi desenhado para resolver dores reais de quem trabalha com metas diárias flexíveis e estuda:
-- **Gestão Ágil:** Lançamento expresso de corridas (Uber/99), despesas de carro (Combustível) e gastos fixos universitários (RU - Refeitório Universitário).
-- **Caixinhas de Poupança:** Separação de capital automática baseada em regras percentuais (ex: guardar 20% do faturamento para manutenção/IPVA).
-- **Operação Desconectada:** Criado com filosofia **Offline-First**, permitindo registrar gastos em garagens ou regiões de baixa conectividade, sincronizando em background quando houver internet.
+Este não é mais um aplicativo genérico de finanças. Ele foi desenhado para resolver dores reais de quem trabalha com metas financeiras flexíveis:
+- **Gestão Ágil:** Lançamento expresso de receitas variáveis e despesas do dia a dia, com suporte avançado a leitura de faturas via câmera (OCR simulado).
+- **Caixinhas de Poupança:** Separação de capital automática baseada em regras percentuais (ex: guardar 20% do faturamento para impostos ou manutenções).
+- **Provisões Inteligentes:** Ferramentas embutidas para calcular previsões de ganhos e gastos baseados em dias úteis ou períodos customizados.
+- **Operação Desconectada:** Criado com filosofia **Offline-First**, permitindo registrar transações em regiões de baixa conectividade, sincronizando em background quando houver internet.
 
 ---
 
@@ -22,7 +23,7 @@ src/
 ├── domain/                    ← Núcleo puro (Objetos TypeScript 100% testáveis e isolados)
 │   ├── entities/              ← Transaction, Goal (Imutáveis e autovalidadas)
 │   ├── value-objects/         ← SyncStatus, DataFinanceira, Meses (Evita bugs de fuso horário)
-│   ├── services/              ← CalculadoraUber, CalculadoraRefeitorio, DistribuicaoSaldo
+│   ├── services/              ← ServicosDeDominio, DistribuicaoSaldo
 │   ├── gateways/              ← Interfaces (Portas) para infraestrutura externa
 │   └── repositories/          ← Interfaces de banco de dados
 │
@@ -70,18 +71,18 @@ error / synced → pending
 
 ## 🎨 Design System Premium (FinTech Vibe)
 
-Focado na retenção e engajamento ("Wow Factor").
+Focado na retenção e engajamento, utilizando a magia do Tailwind via NativeWind para transições automáticas.
 
-- **Tema:** Dark Mode Nativo Profundo (Tailwind `slate-950`).
-- **Accent Colors:** Neon Cyan (`cyan-400`) para entradas e roxo premium (`purple-600`) para poupança.
-- **Tipografia:** Moderna, limpa, legível (Inter/Outfit).
-- **Interatividade:** Uso de micro-interações, haptics em fluxos críticos e componentes visuais ricos construídos sobre o NativeWind.
+- **Dual Theme:** Suporte nativo e automático a Dark Mode (Slate 950) e Light Mode (Slate 50).
+- **Accent Colors:** Neon Cyan (`cyan-500`) para entradas e roxo premium (`purple-600`) para poupança e ações primárias.
+- **Tipografia:** Google Font 'Inter' garantindo legibilidade e proporções matemáticas (`tabular-nums`) para leitura de saldos.
+- **Interatividade:** Uso de micro-interações, componentes visuais fluidos e feedback tátil em fluxos críticos.
 
 ---
 
 ## 🧪 TDD e Estratégia de Testes
 
-Os testes não usam `mocks` da framework, mas sim **Fakes** customizados e determinísticos para uma suíte de testes ultrarrápida.
+Os testes não usam `mocks` genéricos da framework, mas sim **Fakes** customizados e determinísticos para uma suíte de testes ultrarrápida.
 
 | Camada | Escopo | Ferramenta | Status |
 |--------|--------|------------|--------|
@@ -99,7 +100,7 @@ Os testes não usam `mocks` da framework, mas sim **Fakes** customizados e deter
 npm install
 
 # 2. Iniciar o servidor de desenvolvimento (Expo)
-npx expo start
+npx expo start -c
 
 # 3. Rodar os testes vitais de negócio
 npm run test
