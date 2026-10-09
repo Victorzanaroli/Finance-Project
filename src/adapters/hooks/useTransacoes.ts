@@ -14,6 +14,7 @@ interface UseTransacoesResult {
   error: string | null;
   refetch: () => Promise<void>;
   deletarTransacao: (id: string) => Promise<boolean>;
+  atualizarTransacao: (transaction: Transaction) => Promise<boolean>;
 }
 
 export function useTransacoes(): UseTransacoesResult {
@@ -48,9 +49,23 @@ export function useTransacoes(): UseTransacoesResult {
     [fetch]
   );
 
+  const atualizarTransacao = useCallback(
+    async (transaction: Transaction): Promise<boolean> => {
+      try {
+        await transactionRepository.atualizar(transaction);
+        await fetch();
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao atualizar transação");
+        return false;
+      }
+    },
+    [fetch]
+  );
+
   useEffect(() => {
     fetch();
   }, [fetch]);
 
-  return { transacoes, isLoading, error, refetch: fetch, deletarTransacao };
+  return { transacoes, isLoading, error, refetch: fetch, deletarTransacao, atualizarTransacao };
 }

@@ -39,6 +39,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRegistrarTransacao } from "../../src/adapters/hooks/useRegistrarTransacao";
 import { useTransacoes } from "../../src/adapters/hooks/useTransacoes";
 import type { Transaction, TransactionType } from "../../src/domain/entities/Transaction";
+import { getQuintoDiaUtil } from "../../src/domain/value-objects/DataFinanceira";
 
 // Gateway isolado de Câmera (Clean Architecture)
 import {
@@ -200,7 +201,7 @@ function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
 
           {processando ? (
             <View style={camStyles.processandoContainer}>
-              <ActivityIndicator color="#a855f7" size="large" />
+              <ActivityIndicator color="#0891b2" size="large" />
               <Text style={camStyles.processandoTitle}>Lendo dados da fatura...</Text>
               <Text style={camStyles.processandoSub}>Aguarde 2 segundos para auto-preenchimento</Text>
             </View>
@@ -232,7 +233,7 @@ const getCamStyles = (isDark: boolean) => StyleSheet.create({
     alignItems: "center",
     position: "relative",
   },
-  corner: { position: "absolute", width: 28, height: 28, borderColor: "#a855f7", borderWidth: 3 },
+  corner: { position: "absolute", width: 28, height: 28, borderColor: "#0891b2", borderWidth: 3 },
   cornerTL: { top: 0, left: 0, borderBottomWidth: 0, borderRightWidth: 0 },
   cornerTR: { top: 0, right: 0, borderBottomWidth: 0, borderLeftWidth: 0 },
   cornerBL: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0 },
@@ -363,7 +364,7 @@ const getCatModalStyles = (isDark: boolean) => StyleSheet.create({
     borderColor: isDark ? "#334155" : "#cbd5e1",
   },
   itemRowSelected: {
-    backgroundColor: "#2e1065",
+    backgroundColor: "#083344",
     borderColor: "#0891b2",
   },
   iconContainer: {
@@ -389,7 +390,7 @@ interface NovaTransacaoModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  initialValues?: { title: string; amount: string; category: string } | null;
+  initialValues?: { title: string; amount: string; category: string; isForecast?: boolean } | null;
 }
 
 function NovaTransacaoModal({
@@ -409,6 +410,7 @@ function NovaTransacaoModal({
   const [type, setType] = useState<TransactionType>("expense");
   const [categoria, setCategoria] = useState<string>("Alimentação");
   const [isFixed, setIsFixed] = useState(false);
+  const [diaCobranca, setDiaCobranca] = useState(new Date().getDate().toString());
 
   const [cameraAberta, setCameraAberta] = useState(false);
   const [catModalVisible, setCatModalVisible] = useState(false);
@@ -444,12 +446,40 @@ function NovaTransacaoModal({
     const parsed = parseFloat(amount.replace(",", "."));
     if (!title.trim() || isNaN(parsed) || !categoria) return;
 
+    let transactionDate = undefined;
+    let recDay = undefined;
+    if (isFixed) {
+      if (diaCobranca === "quinto_dia_util") {
+        recDay = "quinto_dia_util";
+        const agora = new Date();
+        const ano = agora.getFullYear();
+        const mes = agora.getMonth() + 1;
+        const dia = getQuintoDiaUtil(ano, mes);
+        transactionDate = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+      } else {
+        const d = parseInt(diaCobranca, 10);
+        if (isNaN(d) || d < 1 || d > 31) {
+          Alert.alert("Erro", "Dia da cobrança inválido (deve ser de 1 a 31).");
+          return;
+        }
+        recDay = String(d);
+        const agora = new Date();
+        const ano = agora.getFullYear();
+        const mes = String(agora.getMonth() + 1).padStart(2, '0');
+        const dia = String(d).padStart(2, '0');
+        transactionDate = `${ano}-${mes}-${dia}`;
+      }
+    }
+
     const result = await registrar({
       title: title.trim(),
       amount: parsed,
       type,
       category: categoria,
       isFixed,
+      recurrenceDay: recDay,
+      isForecast: initialValues?.isForecast ?? false,
+      date: transactionDate,
     });
 
     if (result) {
@@ -499,7 +529,7 @@ function NovaTransacaoModal({
               <Text style={styles.cameraHighlightTitle}>Escanear Conta com Câmera</Text>
               <Text style={styles.cameraHighlightSub}>Auto-preencher formulário via OCR</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#a855f7" />
+            <Ionicons name="chevron-forward" size={20} color="#0891b2" />
           </TouchableOpacity>
 
           <View style={styles.divisorOu}>
@@ -576,10 +606,35 @@ function NovaTransacaoModal({
             <Switch
               value={isFixed}
               onValueChange={setIsFixed}
-              trackColor={{ false: isDark ? "#1e293b" : isDark ? "#f1f5f9" : "#0f172a", true: "#4c1d95" }}
-              thumbColor={isFixed ? "#0891b2" : isDark ? "#475569" : "#94a3b8"}
+              trackColor={{ false: isDark ? "#1e293b" : isDark ? "#f1f5f9" : "#0f172a", true: "#0891b2" }}
+              thumbColor={isFixed ? "#67e8f9" : isDark ? "#475569" : "#94a3b8"}
             />
           </View>
+
+          {isFixed && (
+            <>
+              <Text style={styles.inputLabel}>Dia da Cobrança / Recebimento</Text>
+              
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+                <TouchableOpacity 
+                  style={[styles.input, { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: diaCobranca === "quinto_dia_util" ? "#0891b2" : (isDark ? "#1e293b" : "#f1f5f9") }]}
+                  onPress={() => setDiaCobranca("quinto_dia_util")}
+                >
+                  <Text style={{ color: diaCobranca === "quinto_dia_util" ? "#fff" : (isDark ? "#f1f5f9" : "#0f172a"), fontWeight: "600", fontSize: 13 }}>5º Dia Útil</Text>
+                </TouchableOpacity>
+
+                <TextInput
+                  style={[styles.input, { flex: 1, textAlign: "center" }]}
+                  value={diaCobranca === "quinto_dia_util" ? "" : diaCobranca}
+                  onChangeText={(text) => setDiaCobranca(text.replace(/[^0-9]/g, ""))}
+                  placeholder="Dia (1-31)"
+                  placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+              </View>
+            </>
+          )}
 
           {error && <Text style={styles.errorText}>⚠️ {error}</Text>}
 
@@ -614,9 +669,10 @@ function NovaTransacaoModal({
 interface TransacaoItemProps {
   transaction: Transaction;
   onDelete: (id: string) => void;
+  onReconcile?: (transaction: Transaction) => void;
 }
 
-function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
+function TransacaoItem({ transaction, onDelete, onReconcile }: TransacaoItemProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const styles = getStyles(isDark);
@@ -630,7 +686,11 @@ function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
   let valorCor = isIncome ? "#34d399" : "#f43f5e";
   let sinal = isIncome ? "+" : "-";
 
-  if (isPoupanca) {
+  if (transaction.isForecast) {
+    bgCard = isDark ? "#451a03" : "#fffbeb";
+    borderColor = "#f59e0b";
+    valorCor = "#f59e0b";
+  } else if (isPoupanca) {
     bgCard = isDark ? "#083344" : "#cffafe"; // Cyan-950 and Cyan-100
     borderColor = "#0891b2";
     valorCor = isDark ? "#67e8f9" : "#0891b2";
@@ -651,7 +711,7 @@ function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
           <View
             style={[
               styles.txCategoryBadge,
-              isPoupanca && { backgroundColor: "#4c1d95" },
+              isPoupanca && { backgroundColor: "#083344" },
               isIncome && { backgroundColor: "#065f46" },
             ]}
           >
@@ -673,13 +733,19 @@ function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
         <Text style={[styles.txAmount, { color: valorCor }]}>
           {sinal} {formatCurrency(transaction.amount)}
         </Text>
-        <TouchableOpacity
-          onPress={() => onDelete(transaction.id)}
-          style={styles.txDeleteBtn}
-          accessibilityLabel="Deletar transação"
-        >
-          <Ionicons name="trash-outline" size={16} color={isDark ? "#64748b" : "#94a3b8"} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 14, alignItems: "center", marginTop: 8 }}>
+          {transaction.isForecast && onReconcile && (
+            <TouchableOpacity onPress={() => onReconcile(transaction)} accessibilityLabel="Consolidar valor">
+              <Ionicons name="checkmark-circle-outline" size={20} color="#f59e0b" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => onDelete(transaction.id)}
+            accessibilityLabel="Deletar transação"
+          >
+            <Ionicons name="trash-outline" size={16} color={isDark ? "#64748b" : "#94a3b8"} />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -688,6 +754,77 @@ function TransacaoItem({ transaction, onDelete }: TransacaoItemProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Tela Principal de Lançamentos
 // ─────────────────────────────────────────────────────────────────────────────
+
+function ModalReconciliacao({
+  visible,
+  transaction,
+  onClose,
+  onConfirm,
+}: {
+  visible: boolean;
+  transaction: Transaction | null;
+  onClose: () => void;
+  onConfirm: (transaction: Transaction, newAmount: number) => void;
+}) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const [amount, setAmount] = useState("");
+  // Reusing input style directly
+  const inputStyle = {
+    height: 56,
+    backgroundColor: isDark ? "#1e293b" : "#f8fafc",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: isDark ? "#f1f5f9" : "#0f172a",
+    borderWidth: 1,
+    borderColor: isDark ? "#334155" : "#cbd5e1",
+  };
+
+  useEffect(() => {
+    if (transaction) {
+      setAmount(String(transaction.amount));
+    }
+  }, [transaction]);
+
+  if (!transaction) return null;
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent>
+      <View style={{ flex: 1, backgroundColor: isDark ? "rgba(2, 6, 23, 0.85)" : "rgba(2, 6, 23, 0.5)", justifyContent: "center", padding: 20 }}>
+        <View style={{ backgroundColor: isDark ? "#0f172a" : "#ffffff", padding: 24, borderRadius: 20, borderWidth: 1, borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a", marginBottom: 8 }}>Consolidar Valor Real</Text>
+          <Text style={{ fontSize: 14, color: "#64748b", marginBottom: 16 }}>Qual foi o valor real obtido para "{transaction.title}"?</Text>
+          
+          <TextInput
+            style={inputStyle}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
+          />
+
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 24 }}>
+            <TouchableOpacity style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: isDark ? "#1e293b" : "#f1f5f9", alignItems: "center" }} onPress={onClose}>
+              <Text style={{ color: isDark ? "#f1f5f9" : "#0f172a", fontWeight: "600" }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#0891b2", alignItems: "center" }} 
+              onPress={() => {
+                const parsed = parseFloat(amount.replace(",", "."));
+                if (!isNaN(parsed) && parsed > 0) {
+                  onConfirm(transaction, parsed);
+                }
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700" }}>Consolidar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 export default function LancamentosScreen() {
   const { colorScheme } = useColorScheme();
@@ -701,7 +838,11 @@ export default function LancamentosScreen() {
     title: string;
     amount: string;
     category: string;
+    isForecast?: boolean;
   } | null>(null);
+
+  const [modalReconciliarVisible, setModalReconciliarVisible] = useState(false);
+  const [transacaoReconciliar, setTransacaoReconciliar] = useState<Transaction | null>(null);
 
   const params = useLocalSearchParams();
   const router = useRouter();
@@ -712,9 +853,10 @@ export default function LancamentosScreen() {
         title: (params.title as string) || "Cálculo",
         amount: (params.amount as string) || "0",
         category: (params.category as string) || "Outros",
+        isForecast: params.isForecast === "true",
       });
       setModalVisible(true);
-      router.setParams({ openModal: "", amount: "", title: "", category: "" });
+      router.setParams({ openModal: "", amount: "", title: "", category: "", isForecast: "" });
     } else if (params.openScan === "true") {
       setInitialFormValues(null);
       setCameraDirect(true);
@@ -722,7 +864,49 @@ export default function LancamentosScreen() {
     }
   }, [params.openModal, params.openScan]);
 
-  const { transacoes, isLoading, refetch, deletarTransacao } = useTransacoes();
+  const { transacoes, isLoading, refetch, deletarTransacao, atualizarTransacao } = useTransacoes();
+
+  const transacoesProjetadas = React.useMemo(() => {
+    const hoje = new Date();
+    const anoAtual = hoje.getFullYear();
+    const mesAtual = hoje.getMonth() + 1; // 1-12
+
+    return transacoes.map((t) => {
+      if (t.isFixed && t.recurrenceDay) {
+        let diaProjetado = 1;
+        if (t.recurrenceDay === "quinto_dia_util") {
+          diaProjetado = getQuintoDiaUtil(anoAtual, mesAtual);
+        } else {
+          const parsed = parseInt(t.recurrenceDay, 10);
+          if (!isNaN(parsed)) {
+            const ultimoDia = new Date(anoAtual, mesAtual, 0).getDate();
+            diaProjetado = parsed > ultimoDia ? ultimoDia : parsed;
+          }
+        }
+
+        const mStr = String(mesAtual).padStart(2, "0");
+        const dStr = String(diaProjetado).padStart(2, "0");
+
+        const props = t.toProps();
+        props.date = `${anoAtual}-${mStr}-${dStr}`;
+        // Create a new instance that mimics the original but with projected date
+        return Object.getPrototypeOf(t).constructor.reconstituir(props) as Transaction;
+      }
+      return t;
+    });
+  }, [transacoes]);
+
+  const handleReconcile = useCallback(async (transaction: Transaction, newAmount: number) => {
+    const props = transaction.toProps();
+    props.amount = newAmount;
+    props.isForecast = false;
+    props.updatedAt = Date.now();
+    // Use the class reconstitution to guarantee domain methods
+    const updatedTransaction = Object.getPrototypeOf(transaction).constructor.reconstituir(props);
+    await atualizarTransacao(updatedTransaction);
+    setModalReconciliarVisible(false);
+    setTransacaoReconciliar(null);
+  }, [atualizarTransacao]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -809,12 +993,12 @@ export default function LancamentosScreen() {
         {/* Lista de Histórico Real do SQLite com Ícones Vector */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Histórico de Transações 📋</Text>
-          <Text style={styles.sectionSub}>{transacoes.length} registros</Text>
+          <Text style={styles.sectionSub}>{transacoesProjetadas.length} registros (Mês Atual)</Text>
         </View>
 
-        {isLoading && transacoes.length === 0 ? (
+        {isLoading && transacoesProjetadas.length === 0 ? (
           <ActivityIndicator color="#0891b2" style={{ marginVertical: 40 }} />
-        ) : transacoes.length === 0 ? (
+        ) : transacoesProjetadas.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="receipt-outline" size={44} color={isDark ? "#64748b" : "#94a3b8"} style={{ marginBottom: 4 }} />
             <Text style={styles.emptyTitle}>Nenhum lançamento registrado</Text>
@@ -824,8 +1008,16 @@ export default function LancamentosScreen() {
           </View>
         ) : (
           <View style={styles.txList}>
-            {transacoes.map((item) => (
-              <TransacaoItem key={item.id} transaction={item} onDelete={handleDelete} />
+            {transacoesProjetadas.map((item) => (
+              <TransacaoItem 
+                key={item.id} 
+                transaction={item} 
+                onDelete={handleDelete} 
+                onReconcile={(t) => {
+                  setTransacaoReconciliar(t);
+                  setModalReconciliarVisible(true);
+                }}
+              />
             ))}
           </View>
         )}
@@ -851,6 +1043,17 @@ export default function LancamentosScreen() {
           refetch();
         }}
         initialValues={initialFormValues}
+      />
+
+      {/* Modal Reconciliação */}
+      <ModalReconciliacao
+        visible={modalReconciliarVisible}
+        transaction={transacaoReconciliar}
+        onClose={() => {
+          setModalReconciliarVisible(false);
+          setTransacaoReconciliar(null);
+        }}
+        onConfirm={handleReconcile}
       />
     </SafeAreaView>
   );

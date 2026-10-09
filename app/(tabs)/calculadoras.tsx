@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   TextInput,
   Switch,
-  Platform
+  Platform,
+  Modal,
+  Alert
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
@@ -18,6 +20,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useColorScheme } from "nativewind";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
+import { useRegistrarTransacao } from "../../src/adapters/hooks/useRegistrarTransacao";
 import {
   calcularProvisaoPeriodo,
   formatCurrency,
@@ -103,8 +106,8 @@ function CalculadoraTradicional() {
   ];
 
   return (
-    <View className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
-      <View className="bg-slate-50 dark:bg-slate-950 rounded-xl p-4 items-end border border-slate-200 dark:border-slate-800 mb-5 h-24 justify-center">
+    <View className="bg-white dark:bg-[#161B22] rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <View className="bg-slate-50 dark:bg-[#0B0E14] rounded-xl p-4 items-end border border-slate-200 dark:border-slate-800 mb-5 h-24 justify-center">
         <Text className="text-base text-slate-500 dark:text-slate-400 mb-1 font-sans">{expressao}</Text>
         <Text className="text-4xl font-bold text-slate-900 dark:text-slate-100" numberOfLines={1} adjustsFontSizeToFit>
           {visor}
@@ -120,13 +123,13 @@ function CalculadoraTradicional() {
               const isZero = btn === "0";
               const isEqual = btn === "=";
 
-              let btnClass = "flex-1 aspect-square bg-slate-100 dark:bg-slate-800 rounded-xl items-center justify-center";
-              if (isZero) btnClass = "flex-[2.15] aspect-[2.15] bg-slate-100 dark:bg-slate-800 rounded-xl items-center justify-center";
-              if (isOperator) btnClass = "flex-1 aspect-square bg-purple-100 dark:bg-purple-900/30 rounded-xl items-center justify-center";
-              if (isEqual) btnClass = "flex-1 aspect-square bg-purple-600 rounded-xl items-center justify-center shadow-sm";
+              let btnClass = "flex-1 aspect-square bg-slate-100 dark:bg-[#0B0E14] rounded-xl items-center justify-center";
+              if (isZero) btnClass = "flex-[2.15] aspect-[2.15] bg-slate-100 dark:bg-[#0B0E14] rounded-xl items-center justify-center";
+              if (isOperator) btnClass = "flex-1 aspect-square bg-cyan-100 dark:bg-cyan-900/30 rounded-xl items-center justify-center";
+              if (isEqual) btnClass = "flex-1 aspect-square bg-cyan-600 rounded-xl items-center justify-center shadow-sm";
 
               let textClass = "text-2xl font-semibold text-slate-900 dark:text-slate-100";
-              if (isOperator && !isEqual) textClass = "text-2xl font-semibold text-purple-600 dark:text-purple-400";
+              if (isOperator && !isEqual) textClass = "text-2xl font-semibold text-cyan-600 dark:text-cyan-400";
               if (isEqual) textClass = "text-2xl font-semibold text-white";
 
               return (
@@ -139,7 +142,7 @@ function CalculadoraTradicional() {
         ))}
       </View>
 
-      <TouchableOpacity className="bg-purple-600 rounded-xl p-4 flex-row items-center justify-center gap-2 shadow-sm" onPress={handleLancar} activeOpacity={0.8}>
+      <TouchableOpacity className="bg-cyan-600 rounded-xl p-4 flex-row items-center justify-center gap-2 shadow-sm" onPress={handleLancar} activeOpacity={0.8}>
         <Ionicons name="paper-plane-outline" size={20} color="#fff" />
         <Text className="text-white font-bold text-base">Lançar Resultado</Text>
       </TouchableOpacity>
@@ -166,6 +169,12 @@ function CalculadoraProvisao() {
   const [deducaoFrequente, setDeducaoFrequente] = useState("140");
   const [vezesPorSemana, setVezesPorSemana] = useState("2");
   const [descricaoGasto, setDescricaoGasto] = useState("");
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalCategory, setModalCategory] = useState("");
+
+  const { registrar, isLoading } = useRegistrarTransacao();
 
   const DIAS_SEMANA = [
     { label: "D", val: 0 },
@@ -201,15 +210,29 @@ function CalculadoraProvisao() {
   const handleLancar = () => {
     if (resultado.resultadoLiquido <= 0) return;
     const isGasto = tipoCalculo === "gastos";
-    router.push({
-      pathname: "/lancamentos",
-      params: { 
-        openModal: "true", 
-        amount: String(resultado.resultadoLiquido), 
-        title: isGasto ? `Provisão de Gastos (${formatarData(dataInicial)} a ${formatarData(dataFinal)})` : `Provisão de Ganhos (${formatarData(dataInicial)} a ${formatarData(dataFinal)})`,
-        category: isGasto ? (descricaoGasto || "Provisões") : "Salário"
-      },
+    
+    setModalTitle(isGasto ? `Provisão de Gastos (${formatarData(dataInicial)} a ${formatarData(dataFinal)})` : `Provisão de Ganhos (${formatarData(dataInicial)} a ${formatarData(dataFinal)})`);
+    setModalCategory(isGasto ? (descricaoGasto || "Provisões") : "Salário");
+    setModalVisible(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!modalTitle.trim()) return;
+
+    const result = await registrar({
+      title: modalTitle.trim(),
+      amount: resultado.resultadoLiquido,
+      type: tipoCalculo === "gastos" ? "expense" : "income",
+      category: modalCategory,
+      isFixed: false,
+      isForecast: true,
+      // Default date will be used (hoje)
     });
+
+    if (result) {
+      setModalVisible(false);
+      Alert.alert("Sucesso!", "Sua previsão foi salva com sucesso no Extrato e aguarda reconciliação.");
+    }
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -376,18 +399,56 @@ function CalculadoraProvisao() {
       </View>
 
       <View className={`${tipoCalculo === "ganhos" ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800" : "bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800"} rounded-xl border-2 p-4 items-center mb-5`}>
-        <Text className={`text-xs ${tipoCalculo === "ganhos" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} font-bold uppercase tracking-wider`}>
+        <Text className={`text-xs ${tipoCalculo === "ganhos" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-[#FF6B6B]"} font-bold uppercase tracking-wider`}>
           {tipoCalculo === "ganhos" ? "Lucro Líquido Projetado" : "Gasto Total Projetado"}
         </Text>
-        <Text className={`text-3xl font-bold ${tipoCalculo === "ganhos" ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"} mt-1 tabular-nums`}>
+        <Text className={`text-3xl font-bold ${tipoCalculo === "ganhos" ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-[#FF6B6B]"} mt-1 tabular-nums`}>
           {formatCurrency(resultado.resultadoLiquido)}
         </Text>
       </View>
 
-      <TouchableOpacity className={`h-14 ${tipoCalculo === "ganhos" ? "bg-emerald-600" : "bg-rose-600"} rounded-xl p-4 flex-row items-center justify-center gap-2 shadow-sm w-full`} onPress={handleLancar} activeOpacity={0.8}>
+      <TouchableOpacity className={`h-14 ${tipoCalculo === "ganhos" ? "bg-emerald-600" : "bg-rose-600 dark:bg-[#EF5350]"} rounded-xl p-4 flex-row items-center justify-center gap-2 shadow-sm w-full`} onPress={handleLancar} activeOpacity={0.8}>
         <Ionicons name="save-outline" size={20} color="#fff" />
         <Text className="text-white font-bold text-base">{tipoCalculo === "ganhos" ? "Salvar como Receita" : "Salvar como Despesa"}</Text>
       </TouchableOpacity>
+
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View className="flex-1 justify-center items-center p-5" style={{ backgroundColor: isDark ? "rgba(2,6,23,0.85)" : "rgba(2,6,23,0.5)" }}>
+          <View className="w-full bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
+            <Text className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Salvar Previsão</Text>
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">Esta previsão não alterará seu saldo principal até ser consolidada.</Text>
+            
+            <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Valor (Somente Leitura)</Text>
+            <TextInput
+              className="h-12 bg-slate-100 dark:bg-slate-800 rounded-xl px-4 text-slate-500 dark:text-slate-400 font-semibold mb-4 border border-slate-200 dark:border-slate-700"
+              value={formatCurrency(resultado.resultadoLiquido)}
+              editable={false}
+            />
+
+            <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Descrição</Text>
+            <TextInput
+              className="h-12 bg-slate-50 dark:bg-slate-800 rounded-xl px-4 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 mb-6"
+              value={modalTitle}
+              onChangeText={setModalTitle}
+              placeholder="Ex: Previsão da semana"
+              placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
+            />
+
+            <View className="flex-row gap-3">
+              <TouchableOpacity className="flex-1 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 items-center justify-center" onPress={() => setModalVisible(false)}>
+                <Text className="font-semibold text-slate-700 dark:text-slate-300">Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                className={`flex-1 h-12 rounded-xl items-center justify-center ${isLoading ? "bg-cyan-400" : "bg-cyan-600"}`} 
+                onPress={handleConfirmSave} 
+                disabled={isLoading}
+              >
+                <Text className="font-bold text-white">{isLoading ? "Salvando..." : "Salvar"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

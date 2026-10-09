@@ -27,6 +27,7 @@ import { useState, useCallback } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { useColorScheme } from "nativewind";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 import { limparDadosUseCase } from "../../src/adapters/composition-root";
 
@@ -122,7 +123,7 @@ const avatarStyles = StyleSheet.create({
     borderRadius: 20,
     marginTop: 6,
     borderWidth: 1,
-    borderColor: "#a855f7",
+    borderColor: "#0891b2",
   },
   alterarBtnText: { fontSize: 12, fontWeight: "700" },
 });
@@ -179,8 +180,8 @@ function ConfigCard({ item, isDark }: { item: ConfiguracaoItem; isDark: boolean 
         <Switch
           value={item.valor ?? false}
           onValueChange={item.onToggle}
-          trackColor={{ false: isDark ? "#1e293b" : "#cbd5e1", true: "#4c1d95" }}
-          thumbColor={item.valor ? "#0891b2" : "#94a3b8"}
+          trackColor={{ false: isDark ? "#1e293b" : "#cbd5e1", true: "#0891b2" }}
+          thumbColor={item.valor ? "#67e8f9" : "#94a3b8"}
         />
       )}
       {item.tipo === "botao" && (
@@ -209,6 +210,7 @@ const configStyles = StyleSheet.create({
 export default function ProfileScreen() {
   const { colorScheme, setColorScheme } = useColorScheme();
   const isDark = colorScheme !== "light";
+  const router = useRouter();
 
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
   const [carregandoFoto, setCarregandoFoto] = useState(false);
@@ -297,6 +299,16 @@ export default function ProfileScreen() {
       corIcone: "#3b82f6",
     },
     {
+      id: "shopping-list",
+      icone: "🛒",
+      titulo: "Anotações de Compras",
+      descricao: "Lista de desejos e planejamento",
+      tipo: "botao",
+      danger: false,
+      onPress: () => router.push("/shopping-list"),
+      corIcone: "#0891b2",
+    },
+    {
       id: "limpar",
       icone: "🔄",
       titulo: "Limpar Dados de Teste",
@@ -338,7 +350,7 @@ export default function ProfileScreen() {
         {/* Seção: Aparência e Notificações */}
         <Text style={styles.sectionTitle}>Aparência e Preferências</Text>
         <View style={styles.section}>
-          {configuracoes.slice(0, 2).map((item) => (
+          {configuracoes.slice(0, 3).map((item) => (
             <ConfigCard key={item.id} item={item} isDark={isDark} />
           ))}
         </View>
@@ -346,7 +358,7 @@ export default function ProfileScreen() {
         {/* Seção: Manutenção e Limpeza */}
         <Text style={styles.sectionTitle}>Manutenção do Banco de Dados</Text>
         <View style={styles.section}>
-          <ConfigCard item={configuracoes[2]} isDark={isDark} />
+          <ConfigCard item={configuracoes[3]} isDark={isDark} />
         </View>
 
         {/* Rodapé Informativo */}

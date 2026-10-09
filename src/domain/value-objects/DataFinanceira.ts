@@ -38,3 +38,25 @@ export function dataISOValida(valor: string): boolean {
 export function mesReferenciaValido(valor: string): boolean {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(valor);
 }
+
+/** 
+ * Retorna o 5º dia útil de um mês e ano específicos. 
+ * Considera dias de segunda a sexta como dias úteis.
+ */
+export function getQuintoDiaUtil(ano: number, mes: number): number {
+  let diasUteisCount = 0;
+  let dia = 1;
+  while (true) {
+    // mes de 1 a 12, por isso mes - 1 no construtor do Date
+    const d = new Date(ano, mes - 1, dia);
+    const dayOfWeek = d.getDay();
+    // 0 = Domingo, 6 = Sábado
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      diasUteisCount++;
+    }
+    if (diasUteisCount === 5) {
+      return dia;
+    }
+    dia++;
+  }
+}

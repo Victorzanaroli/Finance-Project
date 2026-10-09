@@ -42,6 +42,8 @@ export interface TransactionProps {
   type: TransactionType;
   category: string;
   isFixed: boolean;
+  recurrenceDay?: string | null;
+  isForecast?: boolean;
   date: string; // ISO 8601: "YYYY-MM-DD"
   syncStatus: SyncStatus;
   updatedAt: number; // Unix timestamp em ms
@@ -66,6 +68,8 @@ export class Transaction {
   readonly type: TransactionType;
   readonly category: string;
   readonly isFixed: boolean;
+  readonly recurrenceDay: string | null;
+  readonly isForecast: boolean;
   readonly date: string;
   readonly syncStatus: SyncStatus;
   readonly updatedAt: number;
@@ -77,6 +81,8 @@ export class Transaction {
     this.type = props.type;
     this.category = props.category;
     this.isFixed = props.isFixed;
+    this.recurrenceDay = props.recurrenceDay ?? null;
+    this.isForecast = props.isForecast ?? false;
     this.date = props.date;
     this.syncStatus = props.syncStatus;
     this.updatedAt = props.updatedAt;
@@ -160,6 +166,8 @@ export class Transaction {
       type: this.type,
       category: this.category,
       isFixed: this.isFixed,
+      recurrenceDay: this.recurrenceDay,
+      isForecast: this.isForecast,
       date: this.date,
       syncStatus: this.syncStatus,
       updatedAt: this.updatedAt,

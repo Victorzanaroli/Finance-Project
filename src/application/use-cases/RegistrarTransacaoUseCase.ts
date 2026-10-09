@@ -42,6 +42,8 @@ export interface RegistrarTransacaoInput {
   type: TransactionType;
   category: string;
   isFixed: boolean;
+  recurrenceDay?: string;
+  isForecast?: boolean;
   /** Formato ISO 8601: "YYYY-MM-DD". Padrão: data de hoje. */
   date?: string;
 }
@@ -77,12 +79,7 @@ export class RegistrarTransacaoUseCase {
    * @throws Error se a entidade Transaction detectar invariante violada.
    */
   async executar(input: RegistrarTransacaoInput): Promise<Transaction> {
-    // 1. Gerar UUID no cliente — offline-first: nunca dependemos do servidor para o ID.
     const id = this.uuidGenerator.gerar();
-
-    // 2. Criar a entidade — Transaction.criar() valida invariantes e define:
-    //    - syncStatus: 'pending' (sempre, para entrar na fila de sync)
-    //    - updatedAt: Date.now() (para last-write-wins na resolução de conflito)
     const transaction = Transaction.criar({
       id,
       title: input.title.trim(),
@@ -90,15 +87,13 @@ export class RegistrarTransacaoUseCase {
       type: input.type,
       category: input.category,
       isFixed: input.isFixed,
+      recurrenceDay: input.recurrenceDay,
+      isForecast: input.isForecast,
       date: input.date ?? hojeISO(),
     });
 
-    // 3. Persistir localmente — o repositório grava no SQLite via Drizzle.
-    //    Esta operação é sempre bem-sucedida do ponto de vista do usuário
-    //    (padrão offline-first — SKILL.md seção 7).
     await this.transactionRepository.salvar(transaction);
 
-    // 4. Retornar a entidade criada para o caller poder atualizar a UI.
     return transaction;
   }
 }

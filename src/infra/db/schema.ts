@@ -47,6 +47,16 @@ export const transactions = sqliteTable("transactions", {
    */
   is_fixed: integer("is_fixed", { mode: "boolean" }).notNull().default(false),
 
+  /**
+   * Indica se é uma previsão (estimativa).
+   */
+  is_forecast: integer("is_forecast", { mode: "boolean" }).notNull().default(false),
+
+  /**
+   * Dia da recorrência para transações fixas (ex: "15" ou "quinto_dia_util").
+   */
+  recurrence_day: text("recurrence_day"),
+
   /** Data no formato ISO 8601 (ex: "2024-01-15"). */
   date: text("date").notNull(),
 

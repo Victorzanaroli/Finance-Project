@@ -289,18 +289,22 @@ export default function DashboardScreen() {
             </Text>
 
             {/* Ações Rápidas (Glassmorphism effect) */}
-            <View className="flex-row gap-3 mt-2">
-              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3.5 rounded-2xl items-center border border-black/5 dark:border-white/10" onPress={() => router.push("/lancamentos")}>
-                <Ionicons name="add-outline" size={24} color={isDark ? "#fff" : "#0f172a"} />
-                <Text className={`text-[11px] mt-1.5 font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>Despesa</Text>
+            <View className="flex-row gap-2 mt-2">
+              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3 rounded-2xl items-center border border-black/5 dark:border-white/10" onPress={() => router.push("/lancamentos")}>
+                <Ionicons name="add-outline" size={22} color={isDark ? "#fff" : "#0f172a"} />
+                <Text className={`text-[10px] mt-1.5 font-bold ${isDark ? 'text-white' : 'text-slate-700'}`} numberOfLines={1} adjustsFontSizeToFit>Despesa</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3.5 rounded-2xl items-center border border-black/5 dark:border-white/10" onPress={() => router.push("/calculadoras")}>
-                <Ionicons name="calculator-outline" size={24} color={isDark ? "#fff" : "#0f172a"} />
-                <Text className={`text-[11px] mt-1.5 font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>Previsões</Text>
+              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3 rounded-2xl items-center border border-black/5 dark:border-white/10" onPress={() => router.push("/calculadoras")}>
+                <Ionicons name="calculator-outline" size={22} color={isDark ? "#fff" : "#0f172a"} />
+                <Text className={`text-[10px] mt-1.5 font-bold ${isDark ? 'text-white' : 'text-slate-700'}`} numberOfLines={1} adjustsFontSizeToFit>Previsões</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3.5 rounded-2xl items-center border border-cyan-400 dark:border-cyan-400 shadow-sm" onPress={() => router.push("/lancamentos?openScan=true")}>
-                <Ionicons name="scan-outline" size={24} color={isDark ? "#22d3ee" : "#0891b2"} />
-                <Text className={`text-[11px] mt-1.5 font-bold ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>Escanear</Text>
+              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3 rounded-2xl items-center border border-black/5 dark:border-white/10" onPress={() => router.push("/shopping-list")}>
+                <Ionicons name="cart-outline" size={22} color={isDark ? "#fff" : "#0f172a"} />
+                <Text className={`text-[10px] mt-1.5 font-bold ${isDark ? 'text-white' : 'text-slate-700'}`} numberOfLines={1} adjustsFontSizeToFit>Compras</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-1 bg-black/5 dark:bg-white/10 p-3 rounded-2xl items-center border border-cyan-400 dark:border-cyan-400 shadow-sm" onPress={() => router.push("/lancamentos?openScan=true")}>
+                <Ionicons name="scan-outline" size={22} color={isDark ? "#22d3ee" : "#0891b2"} />
+                <Text className={`text-[10px] mt-1.5 font-bold ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`} numberOfLines={1} adjustsFontSizeToFit>Escanear</Text>
               </TouchableOpacity>
             </View>
           </LinearGradient>
