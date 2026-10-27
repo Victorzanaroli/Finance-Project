@@ -97,6 +97,21 @@ describe("ObterResumoFinanceiroUseCase", () => {
     expect(r.mesReferencia).toBe("2026-01");
   });
 
+  it("ignora transações marcadas como apenas previsão (isForecast) no saldo consolidado e calcula previsões separadamente", async () => {
+    await txRepo.salvar(tx({ id: "1", type: "income", amount: 3000, category: "Salário" }));
+    await txRepo.salvar(tx({ id: "2", amount: 500, category: "Casa", isForecast: false, date: "2025-03-05" }));
+    await txRepo.salvar(tx({ id: "3", amount: 400, category: "Lazer", isForecast: true, date: "2025-03-20" }));
+
+    const r = await useCase.executar("2025-03");
+
+    expect(r.totalReceitas).toBe(3000);
+    expect(r.totalDespesas).toBe(500);
+    expect(r.saldoLivre).toBe(2500);
+    expect(r.totalPrevisoesDespesas).toBe(400);
+    expect(r.despesasPorSemana).toEqual([500, 0, 0, 0]);
+    expect(r.historicoMensal).toHaveLength(6);
+  });
+
   it("rejeita mês de referência em formato inválido", async () => {
     await expect(useCase.executar("2025-13")).rejects.toThrow("mesReferencia deve estar no formato YYYY-MM");
     await expect(useCase.executar("março")).rejects.toThrow("mesReferencia deve estar no formato YYYY-MM");

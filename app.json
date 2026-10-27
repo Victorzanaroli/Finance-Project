@@ -6,13 +6,16 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#020617",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.victordev.financas"
     },
     "android": {
-      "package": "com.victordev.financas"
+      "package": "com.victordev.financas",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro"
@@ -31,7 +34,12 @@
         {
           "photosPermission": "Precisamos de acesso à galeria para alterar sua foto de perfil."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-secure-store",
+      "expo-splash-screen",
+      "expo-status-bar"
     ],
     "scheme": "financas",
     "experiments": {

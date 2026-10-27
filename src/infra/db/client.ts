@@ -20,45 +20,38 @@ const DATABASE_NAME = "financas.db";
 
 /**
  * Abre o banco de dados SQLite de forma síncrona.
- * expo-sqlite gerencia o arquivo em:
- *   iOS:     Documents/ExponentExperienceData/{slug}/SQLite/{DATABASE_NAME}
- *   Android: data/data/{package}/files/SQLite/{DATABASE_NAME}
  */
 const sqliteDatabase = openDatabaseSync(DATABASE_NAME, {
-  enableChangeListener: true, // habilita reatividade via useLiveQuery do Drizzle
+  enableChangeListener: true,
 });
 
 /**
  * Instância do Drizzle ORM tipada com o schema completo.
  * Exportada para uso exclusivo pelos adapters de repositório.
- *
- * Uso nos adapters:
- *   import { db } from '@infra/db/client';
- *   const rows = await db.select().from(schema.transactions);
  */
 export const db = drizzle(sqliteDatabase, { schema });
 
 /**
- * Migração manual inline — cria as tabelas se ainda não existirem.
- * Em produção, substitua por migrations geradas pelo `drizzle-kit generate`.
- *
- * Esta função é chamada no bootstrap da aplicação (src/infra/db/migrate.ts).
+ * Migração inline segura — cria as tabelas se ainda não existirem e garante
+ * que colunas adicionadas recentemente existam em bancos antigos.
  */
 export async function runMigrations(): Promise<void> {
   await sqliteDatabase.execAsync(`
     PRAGMA journal_mode = WAL;
 
     CREATE TABLE IF NOT EXISTS transactions (
-      id          TEXT PRIMARY KEY NOT NULL,
-      title       TEXT NOT NULL,
-      amount      REAL NOT NULL,
-      type        TEXT NOT NULL CHECK(type IN ('income', 'expense')),
-      category    TEXT NOT NULL,
-      is_fixed    INTEGER NOT NULL DEFAULT 0,
-      date        TEXT NOT NULL,
-      sync_status TEXT NOT NULL DEFAULT 'pending'
-                       CHECK(sync_status IN ('pending', 'synced', 'error')),
-      updated_at  INTEGER NOT NULL
+      id             TEXT PRIMARY KEY NOT NULL,
+      title          TEXT NOT NULL,
+      amount         REAL NOT NULL,
+      type           TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+      category       TEXT NOT NULL,
+      is_fixed       INTEGER NOT NULL DEFAULT 0,
+      is_forecast    INTEGER NOT NULL DEFAULT 0,
+      recurrence_day TEXT,
+      date           TEXT NOT NULL,
+      sync_status    TEXT NOT NULL DEFAULT 'pending'
+                          CHECK(sync_status IN ('pending', 'synced', 'error')),
+      updated_at     INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS goals (
@@ -68,8 +61,34 @@ export async function runMigrations(): Promise<void> {
       current_amount REAL NOT NULL DEFAULT 0,
       color_hex      TEXT NOT NULL DEFAULT '#7c3aed',
       sync_status    TEXT NOT NULL DEFAULT 'pending'
-                          CHECK(sync_status IN ('pending', 'synced', 'error')),
+                           CHECK(sync_status IN ('pending', 'synced', 'error')),
       updated_at     INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS shopping_items (
+      id              TEXT PRIMARY KEY NOT NULL,
+      name            TEXT NOT NULL,
+      estimated_value TEXT NOT NULL DEFAULT '',
+      is_bought       INTEGER NOT NULL DEFAULT 0,
+      category        TEXT NOT NULL DEFAULT 'Mercado',
+      updated_at      INTEGER NOT NULL
+    );
   `);
+
+  // Garante migração segura para bancos SQLite criados antes de is_forecast / recurrence_day
+  try {
+    await sqliteDatabase.execAsync(
+      `ALTER TABLE transactions ADD COLUMN is_forecast INTEGER NOT NULL DEFAULT 0;`
+    );
+  } catch {
+    // Coluna já existe
+  }
+
+  try {
+    await sqliteDatabase.execAsync(
+      `ALTER TABLE transactions ADD COLUMN recurrence_day TEXT;`
+    );
+  } catch {
+    // Coluna já existe
+  }
 }

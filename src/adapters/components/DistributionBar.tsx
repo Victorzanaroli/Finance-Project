@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
-import { useColorScheme } from "react-native";
+import { useColorScheme } from "nativewind";
 
 interface DistributionBarProps {
   saldoLivre: number;
@@ -7,36 +7,55 @@ interface DistributionBarProps {
 }
 
 export function DistributionBar({ saldoLivre, formatCurrency }: DistributionBarProps) {
-  const isDark = useColorScheme() === "dark";
-  
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   if (saldoLivre <= 0) return null;
 
   const savingGoal = saldoLivre * 0.2;
   const spendingLimit = saldoLivre * 0.8;
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? "#0f172a" : "#ffffff", borderColor: isDark ? "#1e293b" : "#e2e8f0" }]}>
-      <Text style={[styles.title, { color: isDark ? "#f1f5f9" : "#0f172a" }]}>Sugestão de Distribuição (20/80)</Text>
-      
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? "#090d16" : "#ffffff",
+          borderColor: isDark ? "#2e1065" : "#ede9fe",
+        },
+      ]}
+    >
+      <Text style={[styles.title, { color: isDark ? "#f1f5f9" : "#0f172a" }]}>
+        Sugestão de Distribuição (20/80)
+      </Text>
+
       <View style={styles.barContainer}>
-        <View style={[styles.barSegment, { flex: 2, backgroundColor: "#7c3aed" }]} />
-        <View style={[styles.barSegment, { flex: 8, backgroundColor: "#0ea5e9" }]} />
+        <View style={[styles.barSegment, { flex: 2, backgroundColor: "#10b981" }]} />
+        <View style={[styles.barSegment, { flex: 8, backgroundColor: "#8b5cf6" }]} />
       </View>
 
       <View style={styles.labelsContainer}>
         <View style={styles.labelWrapper}>
-          <View style={[styles.dot, { backgroundColor: "#7c3aed" }]} />
+          <View style={[styles.dot, { backgroundColor: "#10b981" }]} />
           <View>
-            <Text style={[styles.labelTitle, { color: isDark ? "#94a3b8" : "#64748b" }]}>Poupar (20%)</Text>
-            <Text style={[styles.labelValue, { color: isDark ? "#f1f5f9" : "#0f172a" }]}>{formatCurrency(savingGoal)}</Text>
+            <Text style={[styles.labelTitle, { color: isDark ? "#94a3b8" : "#64748b" }]}>
+              Poupar (20%)
+            </Text>
+            <Text style={[styles.labelValue, { color: isDark ? "#34d399" : "#059669" }]}>
+              {formatCurrency(savingGoal)}
+            </Text>
           </View>
         </View>
 
         <View style={styles.labelWrapper}>
-          <View style={[styles.dot, { backgroundColor: "#0ea5e9" }]} />
+          <View style={[styles.dot, { backgroundColor: "#8b5cf6" }]} />
           <View>
-            <Text style={[styles.labelTitle, { color: isDark ? "#94a3b8" : "#64748b" }]}>Gastar (80%)</Text>
-            <Text style={[styles.labelValue, { color: isDark ? "#f1f5f9" : "#0f172a" }]}>{formatCurrency(spendingLimit)}</Text>
+            <Text style={[styles.labelTitle, { color: isDark ? "#94a3b8" : "#64748b" }]}>
+              Gastar (80%)
+            </Text>
+            <Text style={[styles.labelValue, { color: isDark ? "#c4b5fd" : "#7c3aed" }]}>
+              {formatCurrency(spendingLimit)}
+            </Text>
           </View>
         </View>
       </View>

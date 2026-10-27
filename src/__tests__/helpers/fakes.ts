@@ -8,7 +8,6 @@
 
 import type { Goal } from "../../domain/entities/Goal";
 import type { SyncStatus, Transaction } from "../../domain/entities/Transaction";
-import type { IFaturaOcrGateway, DadosFatura } from "../../domain/gateways/IFaturaOcrGateway";
 import type { INetworkGateway } from "../../domain/gateways/INetworkGateway";
 import type { ISyncGateway, SyncResult } from "../../domain/gateways/ISyncGateway";
 import type { IUuidGenerator } from "../../domain/gateways/IUuidGenerator";
@@ -134,14 +133,5 @@ export class FakeSyncGateway implements ISyncGateway {
 
   async deletarTransactionRemota(_id: string): Promise<SyncResult> {
     return { success: true };
-  }
-}
-
-export class FakeFaturaOcrGateway implements IFaturaOcrGateway {
-  public chamadas: string[] = [];
-  constructor(private readonly resposta: DadosFatura = { titulo: "Conta de Luz", valor: "148,90", categoria: "Casa" }) {}
-  async reconhecer(fotoUri: string): Promise<DadosFatura> {
-    this.chamadas.push(fotoUri);
-    return this.resposta;
   }
 }

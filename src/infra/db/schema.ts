@@ -120,3 +120,18 @@ export type TransactionRow = typeof transactions.$inferSelect;
 export type NewTransactionRow = typeof transactions.$inferInsert;
 export type GoalRow = typeof goals.$inferSelect;
 export type NewGoalRow = typeof goals.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tabela: shopping_items (Lista de Compras e Desejos persistente no SQLite)
+// ─────────────────────────────────────────────────────────────────────────────
+export const shoppingItems = sqliteTable("shopping_items", {
+  id: text("id").primaryKey().notNull(),
+  name: text("name").notNull(),
+  estimated_value: text("estimated_value").notNull().default(""),
+  is_bought: integer("is_bought", { mode: "boolean" }).notNull().default(false),
+  category: text("category").notNull().default("Mercado"),
+  updated_at: integer("updated_at").notNull(),
+});
+
+export type ShoppingItemRow = typeof shoppingItems.$inferSelect;
+export type NewShoppingItemRow = typeof shoppingItems.$inferInsert;

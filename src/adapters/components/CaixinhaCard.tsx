@@ -2,8 +2,9 @@
  * src/adapters/components/CaixinhaCard.tsx
  */
 
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, useColorScheme } from "react-native";
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from "react-native";
 import { useEffect, useRef } from "react";
+import { useColorScheme } from "nativewind";
 import type { Goal } from "../../domain/entities/Goal";
 
 function formatCurrency(value: number): string {
@@ -17,10 +18,12 @@ function formatCurrency(value: number): string {
 interface CaixinhaCardProps {
   goal: Goal;
   onDepositar?: (goal: Goal) => void;
+  onExcluir?: (goal: Goal) => void;
 }
 
-export function CaixinhaCard({ goal, onDepositar }: CaixinhaCardProps) {
-  const isDark = useColorScheme() === "dark";
+export function CaixinhaCard({ goal, onDepositar, onExcluir }: CaixinhaCardProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const progressAnim = useRef(new Animated.Value(0)).current;
   const percentual = goal.percentualConcluido / 100;
 
@@ -42,16 +45,22 @@ export function CaixinhaCard({ goal, onDepositar }: CaixinhaCardProps) {
     outputRange: ["0%", "100%"],
   });
 
-  const bgColor = isDark ? "#0f172a" : "#ffffff";
-  const borderColor = isConcluida ? (isDark ? "#065f46" : "#10b981") : (isDark ? "#1e293b" : "#e2e8f0");
+  const bgColor = isDark ? "#090d16" : "#ffffff";
+  const borderColor = isConcluida
+    ? isDark
+      ? "#065f46"
+      : "#10b981"
+    : isDark
+    ? "#2e1065"
+    : "#ede9fe";
   const textColor = isDark ? "#f1f5f9" : "#0f172a";
   const textMuted = isDark ? "#64748b" : "#94a3b8";
 
   return (
     <View style={[styles.card, { backgroundColor: bgColor, borderColor }]}>
       <View style={styles.cardHeader}>
-        <View style={[styles.indicadorCor, { backgroundColor: isDark ? "#1e293b" : "#f1f5f9" }]}>
-          <View style={[styles.dot, { backgroundColor: goal.colorHex }]} />
+        <View style={[styles.indicadorCor, { backgroundColor: isDark ? "#1e1b4b" : "#f5f3ff" }]}>
+          <View style={[styles.dot, { backgroundColor: isConcluida ? "#10b981" : "#8b5cf6" }]} />
         </View>
         <Text style={[styles.titulo, { color: textColor }]} numberOfLines={1}>
           {isConcluida ? "✅ " : ""}{goal.title}
@@ -59,17 +68,31 @@ export function CaixinhaCard({ goal, onDepositar }: CaixinhaCardProps) {
         <Text
           style={[
             styles.percentualBadge,
-            { backgroundColor: isConcluida ? (isDark ? "#065f46" : "#d1fae5") : (isDark ? "#1e1035" : "#f3e8ff") },
+            { backgroundColor: isConcluida ? (isDark ? "#065f46" : "#d1fae5") : (isDark ? "#2e1065" : "#f3e8ff") },
             { color: isConcluida ? (isDark ? "#34d399" : "#059669") : (isDark ? "#c4b5fd" : "#7c3aed") },
           ]}
         >
           {goal.percentualConcluido}%
         </Text>
+        {onExcluir && (
+          <TouchableOpacity
+            onPress={() => onExcluir(goal)}
+            style={styles.excluirBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={[styles.excluirBtnText, { color: textMuted }]}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.valoresRow}>
         <Text style={styles.valorAtual}>
-          <Text style={[styles.valorAtualNum, { color: isConcluida ? (isDark ? "#34d399" : "#059669") : (isDark ? "#22d3ee" : "#0284c7") }]}>
+          <Text
+            style={[
+              styles.valorAtualNum,
+              { color: isConcluida ? (isDark ? "#34d399" : "#059669") : (isDark ? "#a78bfa" : "#7c3aed") },
+            ]}
+          >
             {formatCurrency(goal.currentAmount)}
           </Text>
         </Text>
@@ -77,13 +100,13 @@ export function CaixinhaCard({ goal, onDepositar }: CaixinhaCardProps) {
         <Text style={[styles.valorMeta, { color: textMuted }]}>{formatCurrency(goal.targetAmount)}</Text>
       </View>
 
-      <View style={[styles.barraContainer, { backgroundColor: isDark ? "#334155" : "#e2e8f0" }]}>
+      <View style={[styles.barraContainer, { backgroundColor: isDark ? "#1e1b4b" : "#ede9fe" }]}>
         <Animated.View
           style={[
             styles.barraPreenchida,
             {
               width: barraWidth,
-              backgroundColor: isConcluida ? "#10b981" : "#7c3aed",
+              backgroundColor: isConcluida ? "#10b981" : "#8b5cf6",
             },
           ]}
         />
@@ -94,13 +117,19 @@ export function CaixinhaCard({ goal, onDepositar }: CaixinhaCardProps) {
           <Text style={[styles.concluidaTexto, { color: isDark ? "#34d399" : "#059669" }]}>🎉 Meta atingida!</Text>
         ) : (
           <Text style={[styles.faltaTexto, { color: textMuted }]}>
-            Faltam <Text style={[styles.faltaValor, { color: isDark ? "#94a3b8" : "#475569" }]}>{formatCurrency(valorRestante)}</Text>
+            Faltam <Text style={[styles.faltaValor, { color: isDark ? "#c4b5fd" : "#6d28d9" }]}>{formatCurrency(valorRestante)}</Text>
           </Text>
         )}
 
         {onDepositar && (
           <TouchableOpacity
-            style={[styles.depositarBtn, { backgroundColor: isDark ? "#2e1065" : "#f3e8ff", borderColor: isDark ? "#7c3aed" : "#c084fc" }]}
+            style={[
+              styles.depositarBtn,
+              {
+                backgroundColor: isDark ? "#2e1065" : "#f3e8ff",
+                borderColor: isDark ? "#7c3aed" : "#c084fc",
+              },
+            ]}
             onPress={() => onDepositar(goal)}
             activeOpacity={0.8}
           >
@@ -132,4 +161,6 @@ const styles = StyleSheet.create({
   concluidaTexto: { fontSize: 12, fontWeight: "600" },
   depositarBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
   depositarBtnText: { fontSize: 12, fontWeight: "700" },
+  excluirBtn: { paddingHorizontal: 6, paddingVertical: 2 },
+  excluirBtnText: { fontSize: 13, fontWeight: "700" },
 });

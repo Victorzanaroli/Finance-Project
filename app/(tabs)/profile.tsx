@@ -1,14 +1,14 @@
 /**
  * app/(tabs)/profile.tsx
  *
- * Tela: Perfil e Configurações — Boundary de UI.
+ * Tela: Perfil, Conta Multi-Usuário e Configurações — Boundary de UI.
  *
- * Requisitos Implementados:
- *  - Alternância REAL de Tema (Light Mode x Dark Mode) usando `useColorScheme` da NativeWind (`setColorScheme('light')` / `'dark'`).
- *  - Botão Vermelho em Destaque "Limpar Dados de Teste":
- *    Executa DELETE FROM transactions, DELETE FROM goals, refaz o Seed inicial (Poupança R$500 e Reserva da Moto R$150)
- *    e notifica os componentes.
- *  - Seleção de foto de perfil via expo-image-picker.
+ * Funcionalidades:
+ *  - Gerenciamento completo de Conta (Criar Conta, Entrar, Editar Nome, Foto de Perfil e Sair)
+ *    com persistência Offline-First em `expo-secure-store` + integração Supabase Auth.
+ *  - Sincronização em Nuvem real acionando a fila de transações e metas pendentes.
+ *  - Alternância de Tema (Dark Mode Preto & Roxo x Light Mode Branco & Roxo).
+ *  - Limpeza de Dados de Teste com restauração de seed inicial.
  */
 
 import {
@@ -21,15 +21,20 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { useColorScheme } from "nativewind";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 import { limparDadosUseCase } from "../../src/adapters/composition-root";
+import { useUserAccount } from "../../src/adapters/hooks/useUserAccount";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos de Itens de Configuração
@@ -49,17 +54,275 @@ interface ConfiguracaoItem {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Componente Visual: Avatar de Perfil
+// Modal de Conta (Entrar / Criar Conta / Editar Nome)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ModalContaProps {
+  visible: boolean;
+  isDark: boolean;
+  nomeAtual: string;
+  emailAtual: string;
+  isAuthenticated: boolean;
+  onClose: () => void;
+  onSalvarNome: (nome: string) => Promise<void>;
+  onEntrar: (email: string, senha: string) => Promise<void>;
+  onCadastrar: (nome: string, email: string, senha: string) => Promise<void>;
+  onSair: () => Promise<void>;
+}
+
+function ModalContaUsuario({
+  visible,
+  isDark,
+  nomeAtual,
+  emailAtual,
+  isAuthenticated,
+  onClose,
+  onSalvarNome,
+  onEntrar,
+  onCadastrar,
+  onSair,
+}: ModalContaProps) {
+  const [aba, setAba] = useState<"perfil" | "login" | "cadastro">(
+    isAuthenticated ? "perfil" : "cadastro"
+  );
+  const [nome, setNome] = useState(nomeAtual);
+  const [email, setEmail] = useState(emailAtual);
+  const [senha, setSenha] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNome(nomeAtual);
+    setEmail(emailAtual);
+    setErro(null);
+  }, [nomeAtual, emailAtual, visible]);
+
+  const handleExecutar = async () => {
+    setErro(null);
+    setSalvando(true);
+    try {
+      if (aba === "perfil") {
+        await onSalvarNome(nome);
+        onClose();
+      } else if (aba === "login") {
+        await onEntrar(email, senha);
+        setSenha("");
+        onClose();
+      } else {
+        await onCadastrar(nome, email, senha);
+        setSenha("");
+        onClose();
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao atualizar conta.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
+      <KeyboardAvoidingView
+        className="flex-1 justify-end bg-black/70"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <View
+          style={{
+            backgroundColor: isDark ? "#090d16" : "#ffffff",
+            borderColor: isDark ? "#2e1065" : "#ede9fe",
+          }}
+          className="rounded-t-3xl p-6 border-t"
+        >
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-xl font-extrabold text-slate-900 dark:text-white">
+              Minha Conta 👤
+            </Text>
+            <TouchableOpacity onPress={onClose} className="p-1">
+              <Ionicons name="close" size={24} color={isDark ? "#c4b5fd" : "#7c3aed"} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Seletor de Abas da Conta */}
+          <View className="flex-row bg-slate-100 dark:bg-[#131129] rounded-xl p-1 mb-5 border border-violet-200/60 dark:border-violet-900/60">
+            <TouchableOpacity
+              onPress={() => {
+                setAba("perfil");
+                setErro(null);
+              }}
+              className={`flex-1 py-2.5 rounded-lg items-center ${
+                aba === "perfil" ? "bg-violet-600" : ""
+              }`}
+            >
+              <Text
+                className={`text-xs font-bold ${
+                  aba === "perfil" ? "text-white" : "text-slate-500 dark:text-slate-400"
+                }`}
+              >
+                Editar Nome
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setAba("cadastro");
+                setErro(null);
+              }}
+              className={`flex-1 py-2.5 rounded-lg items-center ${
+                aba === "cadastro" ? "bg-violet-600" : ""
+              }`}
+            >
+              <Text
+                className={`text-xs font-bold ${
+                  aba === "cadastro" ? "text-white" : "text-slate-500 dark:text-slate-400"
+                }`}
+              >
+                Criar Conta
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setAba("login");
+                setErro(null);
+              }}
+              className={`flex-1 py-2.5 rounded-lg items-center ${
+                aba === "login" ? "bg-violet-600" : ""
+              }`}
+            >
+              <Text
+                className={`text-xs font-bold ${
+                  aba === "login" ? "text-white" : "text-slate-500 dark:text-slate-400"
+                }`}
+              >
+                Entrar
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {(aba === "perfil" || aba === "cadastro") && (
+            <View className="mb-4">
+              <Text className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                Como você quer ser chamado?
+              </Text>
+              <TextInput
+                className="bg-slate-50 dark:bg-[#131129] rounded-xl p-4 text-slate-900 dark:text-white font-semibold border border-violet-200 dark:border-violet-900/80"
+                value={nome}
+                onChangeText={setNome}
+                placeholder="Ex: Victor, Ana, Lucas..."
+                placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
+              />
+            </View>
+          )}
+
+          {(aba === "login" || aba === "cadastro") && (
+            <>
+              <View className="mb-4">
+                <Text className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Seu E-mail
+                </Text>
+                <TextInput
+                  className="bg-slate-50 dark:bg-[#131129] rounded-xl p-4 text-slate-900 dark:text-white font-semibold border border-violet-200 dark:border-violet-900/80"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="seuemail@exemplo.com"
+                  placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View className="mb-4">
+                <Text className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Senha
+                </Text>
+                <TextInput
+                  className="bg-slate-50 dark:bg-[#131129] rounded-xl p-4 text-slate-900 dark:text-white font-semibold border border-violet-200 dark:border-violet-900/80"
+                  value={senha}
+                  onChangeText={setSenha}
+                  placeholder="Mínimo de 4 caracteres"
+                  placeholderTextColor={isDark ? "#475569" : "#94a3b8"}
+                  secureTextEntry
+                />
+              </View>
+            </>
+          )}
+
+          <View className="bg-violet-50/80 dark:bg-violet-950/30 border border-violet-200/80 dark:border-violet-900/50 rounded-xl p-3 mb-4">
+            <Text className="text-xs text-slate-600 dark:text-slate-300 leading-5">
+              🔒 Seus dados funcionam no modo **Offline-First**: você pode acessar e lançar gastos com ou sem internet a qualquer momento.
+            </Text>
+          </View>
+
+          {erro && (
+            <Text className="text-xs font-bold text-orange-500 dark:text-orange-400 mb-3">
+              ⚠️ {erro}
+            </Text>
+          )}
+
+          <TouchableOpacity
+            onPress={handleExecutar}
+            disabled={salvando}
+            className="bg-violet-600 py-4 rounded-xl items-center shadow-md"
+          >
+            {salvando ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text className="text-white font-bold text-base">
+                {aba === "perfil"
+                  ? "✓ Salvar Nome"
+                  : aba === "login"
+                  ? "→ Entrar na Conta"
+                  : "✓ Criar Minha Conta"}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {isAuthenticated && (
+            <TouchableOpacity
+              onPress={async () => {
+                await onSair();
+                onClose();
+              }}
+              className="mt-3 py-3 rounded-xl items-center border border-orange-400/50"
+            >
+              <Text className="text-xs font-bold text-orange-500 dark:text-orange-400">
+                Sair da Conta Atual
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <View className="h-4" />
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Componente Visual: Avatar de Perfil e Status da Conta
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface AvatarPerfilProps {
+  nome: string;
+  email: string;
+  isAuthenticated: boolean;
   uri: string | null;
   onAlterarFoto: () => void;
+  onAbrirModalConta: () => void;
   carregando: boolean;
   isDark: boolean;
 }
 
-function AvatarPerfil({ uri, onAlterarFoto, carregando, isDark }: AvatarPerfilProps) {
+function AvatarPerfil({
+  nome,
+  email,
+  isAuthenticated,
+  uri,
+  onAlterarFoto,
+  onAbrirModalConta,
+  carregando,
+  isDark,
+}: AvatarPerfilProps) {
   return (
     <View style={avatarStyles.container}>
       <TouchableOpacity
@@ -72,7 +335,7 @@ function AvatarPerfil({ uri, onAlterarFoto, carregando, isDark }: AvatarPerfilPr
         {uri ? (
           <Image source={{ uri }} style={avatarStyles.imagem} />
         ) : (
-          <View style={[avatarStyles.placeholder, { backgroundColor: isDark ? "#083344" : "#cffafe" }]}>
+          <View style={[avatarStyles.placeholder, { backgroundColor: isDark ? "#2e1065" : "#f3e8ff" }]}>
             <Text style={avatarStyles.placeholderTexto}>👤</Text>
           </View>
         )}
@@ -84,46 +347,62 @@ function AvatarPerfil({ uri, onAlterarFoto, carregando, isDark }: AvatarPerfilPr
           )}
         </View>
       </TouchableOpacity>
-      <Text style={[avatarStyles.nome, { color: isDark ? "#f1f5f9" : "#0f172a" }]}>Perfil do Usuário</Text>
-      <Text style={avatarStyles.sub}>Toque na foto para alterar</Text>
-      <TouchableOpacity
-        style={[avatarStyles.alterarBtn, { backgroundColor: isDark ? "#1e293b" : "#e2e8f0" }]}
-        onPress={onAlterarFoto}
-      >
-        <Text style={[avatarStyles.alterarBtnText, { color: isDark ? "#67e8f9" : "#0891b2" }]}>
-          Alterar Foto de Perfil
-        </Text>
-      </TouchableOpacity>
+
+      <Text style={[avatarStyles.nome, { color: isDark ? "#f1f5f9" : "#0f172a" }]}>
+        {nome || "Usuário"}
+      </Text>
+      <Text style={avatarStyles.sub}>
+        {email ? `${email} • Conta Ativa` : "Modo Local Offline-First"}
+      </Text>
+
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+        <TouchableOpacity
+          style={[avatarStyles.alterarBtn, { backgroundColor: isDark ? "#131129" : "#f3e8ff" }]}
+          onPress={onAlterarFoto}
+        >
+          <Text style={[avatarStyles.alterarBtnText, { color: isDark ? "#c4b5fd" : "#7c3aed" }]}>
+            📷 Foto
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[avatarStyles.alterarBtn, { backgroundColor: "#7c3aed" }]}
+          onPress={onAbrirModalConta}
+        >
+          <Text style={[avatarStyles.alterarBtnText, { color: "#ffffff" }]}>
+            {isAuthenticated ? "⚙️ Gerenciar Conta" : "🔑 Entrar / Criar Conta"}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const avatarStyles = StyleSheet.create({
-  container: { alignItems: "center", paddingVertical: 24, gap: 6 },
+  container: { alignItems: "center", paddingVertical: 24, gap: 4 },
   wrapper: { position: "relative" },
-  imagem: { width: 104, height: 104, borderRadius: 52, borderWidth: 3, borderColor: "#0891b2" },
+  imagem: { width: 104, height: 104, borderRadius: 52, borderWidth: 3, borderColor: "#8b5cf6" },
   placeholder: {
     width: 104, height: 104, borderRadius: 52,
     alignItems: "center", justifyContent: "center",
-    borderWidth: 3, borderColor: "#0891b2",
+    borderWidth: 3, borderColor: "#8b5cf6",
   },
   placeholderTexto: { fontSize: 48 },
   editBadge: {
     position: "absolute", bottom: 2, right: 2,
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "#0891b2",
+    backgroundColor: "#7c3aed",
     alignItems: "center", justifyContent: "center",
-    borderWidth: 2, borderColor: "#020617",
+    borderWidth: 2, borderColor: "#05050A",
   },
   nome: { fontSize: 20, fontWeight: "800", marginTop: 4 },
   sub: { fontSize: 13, color: "#64748b" },
   alterarBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 20,
-    marginTop: 6,
     borderWidth: 1,
-    borderColor: "#0891b2",
+    borderColor: "#8b5cf6",
   },
   alterarBtnText: { fontSize: 12, fontWeight: "700" },
 });
@@ -140,8 +419,8 @@ function ConfigCard({ item, isDark }: { item: ConfiguracaoItem; isDark: boolean 
       style={[
         configStyles.card,
         {
-          backgroundColor: isDanger ? (isDark ? "#1c0a12" : "#fef2f2") : isDark ? "#0f172a" : "#ffffff",
-          borderColor: isDanger ? "#f43f5e" : isDark ? "#1e293b" : "#e2e8f0",
+          backgroundColor: isDanger ? (isDark ? "#2a1205" : "#fff7ed") : isDark ? "#090d16" : "#ffffff",
+          borderColor: isDanger ? "#fb923c" : isDark ? "#2e1065" : "#ede9fe",
         },
       ]}
       onPress={item.tipo === "botao" ? item.onPress : undefined}
@@ -152,12 +431,12 @@ function ConfigCard({ item, isDark }: { item: ConfiguracaoItem; isDark: boolean 
           configStyles.iconBg,
           {
             backgroundColor: isDanger
-              ? "rgba(244, 63, 94, 0.2)"
+              ? "rgba(251, 146, 60, 0.2)"
               : item.corIcone
               ? `${item.corIcone}20`
               : isDark
-              ? "#1e293b"
-              : "#f1f5f9",
+              ? "#131129"
+              : "#f5f3ff",
           },
         ]}
       >
@@ -167,12 +446,12 @@ function ConfigCard({ item, isDark }: { item: ConfiguracaoItem; isDark: boolean 
         <Text
           style={[
             configStyles.titulo,
-            { color: isDanger ? "#f43f5e" : isDark ? "#f1f5f9" : "#0f172a" },
+            { color: isDanger ? "#fb923c" : isDark ? "#f1f5f9" : "#0f172a" },
           ]}
         >
           {item.titulo}
         </Text>
-        <Text style={[configStyles.descricao, isDanger && { color: "#f87171" }]}>
+        <Text style={[configStyles.descricao, isDanger && { color: "#fdba74" }]}>
           {item.descricao}
         </Text>
       </View>
@@ -180,12 +459,12 @@ function ConfigCard({ item, isDark }: { item: ConfiguracaoItem; isDark: boolean 
         <Switch
           value={item.valor ?? false}
           onValueChange={item.onToggle}
-          trackColor={{ false: isDark ? "#1e293b" : "#cbd5e1", true: "#0891b2" }}
-          thumbColor={item.valor ? "#67e8f9" : "#94a3b8"}
+          trackColor={{ false: isDark ? "#1e1b4b" : "#cbd5e1", true: "#7c3aed" }}
+          thumbColor={item.valor ? "#c4b5fd" : "#94a3b8"}
         />
       )}
       {item.tipo === "botao" && (
-        <Ionicons name="chevron-forward" size={20} color={isDanger ? "#f43f5e" : "#94a3b8"} />
+        <Ionicons name="chevron-forward" size={20} color={isDanger ? "#fb923c" : "#a78bfa"} />
       )}
     </TouchableOpacity>
   );
@@ -212,11 +491,21 @@ export default function ProfileScreen() {
   const isDark = colorScheme !== "light";
   const router = useRouter();
 
-  const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
-  const [carregandoFoto, setCarregandoFoto] = useState(false);
-  const [limpando, setLimpando] = useState(false);
+  const {
+    user,
+    sincronizando,
+    entrar,
+    cadastrar,
+    atualizarPerfil,
+    sair,
+    sincronizarAgora,
+  } = useUserAccount();
 
-  // Alterar foto de perfil via expo-image-picker
+  const [carregandoFoto, setCarregandoFoto] = useState(false);
+  const [_limpando, setLimpando] = useState(false);
+  const [modalContaVisible, setModalContaVisible] = useState(false);
+
+  // Alterar foto de perfil via expo-image-picker e persistir na conta do usuário
   const handleAlterarFoto = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -236,14 +525,11 @@ export default function ProfileScreen() {
 
     if (!result.canceled && result.assets.length > 0) {
       setCarregandoFoto(true);
-      setTimeout(() => {
-        setFotoPerfil(result.assets[0].uri);
-        setCarregandoFoto(false);
-      }, 600);
+      await atualizarPerfil({ avatarUri: result.assets[0].uri });
+      setCarregandoFoto(false);
     }
-  }, []);
+  }, [atualizarPerfil]);
 
-  // Alternância REAL de Tema com NativeWind (setColorScheme)
   const handleDarkModeToggle = useCallback(
     (ativarDark: boolean) => {
       setColorScheme(ativarDark ? "dark" : "light");
@@ -251,7 +537,17 @@ export default function ProfileScreen() {
     [setColorScheme]
   );
 
-  // Botão Limpar Dados de Teste
+  const handleCloudSyncToggle = useCallback(
+    async (ativar: boolean) => {
+      await atualizarPerfil({ cloudSyncEnabled: ativar });
+      if (ativar) {
+        const res = await sincronizarAgora();
+        Alert.alert("Sincronização", res.mensagem);
+      }
+    },
+    [atualizarPerfil, sincronizarAgora]
+  );
+
   const handleLimparDados = useCallback(() => {
     Alert.alert(
       "Limpar Dados de Teste",
@@ -266,7 +562,7 @@ export default function ProfileScreen() {
             try {
               await limparDadosUseCase.executar();
               Alert.alert("Sucesso 🎉", "Dados de teste limpos e caixinhas padrão restauradas!");
-            } catch (e) {
+            } catch {
               Alert.alert("Erro", "Falha ao limpar dados.");
             } finally {
               setLimpando(false);
@@ -279,24 +575,37 @@ export default function ProfileScreen() {
 
   const configuracoes: ConfiguracaoItem[] = [
     {
+      id: "conta",
+      icone: "👤",
+      titulo: "Dados da Conta e Nome",
+      descricao: user?.email
+        ? `Conectado como ${user.name} (${user.email})`
+        : `Exibindo como "${user?.name ?? "Victor"}" • Toque para alterar ou criar conta`,
+      tipo: "botao",
+      onPress: () => setModalContaVisible(true),
+      corIcone: "#8b5cf6",
+    },
+    {
       id: "darkmode",
       icone: isDark ? "🌙" : "☀️",
-      titulo: isDark ? "Dark Mode" : "Light Mode",
+      titulo: isDark ? "Dark Mode (Preto & Roxo)" : "Light Mode (Branco & Roxo)",
       descricao: "Alternar entre tema escuro e claro do aplicativo",
       tipo: "toggle",
       valor: isDark,
       onToggle: handleDarkModeToggle,
-      corIcone: "#0891b2",
+      corIcone: "#8b5cf6",
     },
     {
       id: "backup",
-      icone: "☁️",
+      icone: sincronizando ? "⏳" : "☁️",
       titulo: "Sincronização em Nuvem",
-      descricao: "Sincronizar dados com o Supabase",
+      descricao: user?.cloudSyncEnabled
+        ? "Ativa • Sincronizando automaticamente com sua conta"
+        : "Ative para sincronizar seus dados locais com o Supabase",
       tipo: "toggle",
-      valor: false,
-      onToggle: () => {},
-      corIcone: "#3b82f6",
+      valor: user?.cloudSyncEnabled ?? false,
+      onToggle: handleCloudSyncToggle,
+      corIcone: "#a855f7",
     },
     {
       id: "shopping-list",
@@ -306,7 +615,7 @@ export default function ProfileScreen() {
       tipo: "botao",
       danger: false,
       onPress: () => router.push("/shopping-list"),
-      corIcone: "#0891b2",
+      corIcone: "#7c3aed",
     },
     {
       id: "limpar",
@@ -319,9 +628,9 @@ export default function ProfileScreen() {
     },
   ];
 
-  const themeBg = isDark ? "#020617" : "#f8fafc";
-  const cardBg = isDark ? "#0f172a" : "#ffffff";
-  const cardBorder = isDark ? "#1e293b" : "#e2e8f0";
+  const themeBg = isDark ? "#05050A" : "#f8fafc";
+  const cardBg = isDark ? "#090d16" : "#ffffff";
+  const cardBorder = isDark ? "#2e1065" : "#ede9fe";
   const titleColor = isDark ? "#f1f5f9" : "#0f172a";
 
   return (
@@ -333,24 +642,28 @@ export default function ProfileScreen() {
       >
         {/* Header */}
         <View style={styles.pageHeader}>
-          <Text style={[styles.pageTitle, { color: titleColor }]}>Perfil 👤</Text>
-          <Text style={styles.pageSubtitle}>Gerencie suas preferências e conta</Text>
+          <Text style={[styles.pageTitle, { color: titleColor }]}>Perfil & Conta 👤</Text>
+          <Text style={styles.pageSubtitle}>Gerencie seu usuário, tema e dados</Text>
         </View>
 
-        {/* Card de Avatar & Foto */}
+        {/* Card de Avatar & Conta */}
         <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <AvatarPerfil
-            uri={fotoPerfil}
+            nome={user?.name ?? "Victor"}
+            email={user?.email ?? ""}
+            isAuthenticated={user?.isAuthenticated ?? false}
+            uri={user?.avatarUri ?? null}
             onAlterarFoto={handleAlterarFoto}
+            onAbrirModalConta={() => setModalContaVisible(true)}
             carregando={carregandoFoto}
             isDark={isDark}
           />
         </View>
 
-        {/* Seção: Aparência e Notificações */}
-        <Text style={styles.sectionTitle}>Aparência e Preferências</Text>
+        {/* Seção: Conta, Aparência e Nuvem */}
+        <Text style={styles.sectionTitle}>Conta e Preferências</Text>
         <View style={styles.section}>
-          {configuracoes.slice(0, 3).map((item) => (
+          {configuracoes.slice(0, 4).map((item) => (
             <ConfigCard key={item.id} item={item} isDark={isDark} />
           ))}
         </View>
@@ -358,27 +671,46 @@ export default function ProfileScreen() {
         {/* Seção: Manutenção e Limpeza */}
         <Text style={styles.sectionTitle}>Manutenção do Banco de Dados</Text>
         <View style={styles.section}>
-          <ConfigCard item={configuracoes[3]} isDark={isDark} />
+          <ConfigCard item={configuracoes[4]} isDark={isDark} />
         </View>
 
         {/* Rodapé Informativo */}
         <View style={styles.appInfo}>
           <Text style={[styles.appInfoNome, { color: titleColor }]}>💰 Controle Financeiro Pessoal</Text>
-          <Text style={styles.appInfoVersao}>Versão 1.0.0 • NativeWind Mode ({isDark ? "Dark" : "Light"})</Text>
+          <Text style={styles.appInfoVersao}>
+            Versão 1.0.0 • Tema {isDark ? "Dark (Preto & Roxo)" : "Light (Branco & Roxo)"}
+          </Text>
           <Text style={styles.appInfoTech}>
-            React Native • Clean Architecture • SQLite
+            Offline-First • SQLite • IA Financeira Custo Zero
           </Text>
         </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <ModalContaUsuario
+        visible={modalContaVisible}
+        isDark={isDark}
+        nomeAtual={user?.name ?? "Victor"}
+        emailAtual={user?.email ?? ""}
+        isAuthenticated={user?.isAuthenticated ?? false}
+        onClose={() => setModalContaVisible(false)}
+        onSalvarNome={async (novoNome) => {
+          await atualizarPerfil({ name: novoNome });
+        }}
+        onEntrar={async (email, senha) => {
+          await entrar(email, senha);
+        }}
+        onCadastrar={async (nome, email, senha) => {
+          await cadastrar(nome, email, senha);
+        }}
+        onSair={async () => {
+          await sair();
+        }}
+      />
     </SafeAreaView>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Estilos Globais da Tela de Perfil
-// ─────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
@@ -395,7 +727,7 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 12, fontWeight: "700", color: "#0891b2",
+    fontSize: 12, fontWeight: "700", color: "#8b5cf6",
     textTransform: "uppercase", letterSpacing: 1, marginTop: 8,
   },
   section: { gap: 10 },

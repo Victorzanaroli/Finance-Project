@@ -22,8 +22,8 @@ export function useTransacoes(): UseTransacoesResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    setIsLoading(true);
+  const fetch = useCallback(async (silencioso = false) => {
+    if (!silencioso) setIsLoading(true);
     setError(null);
     try {
       const lista = await transactionRepository.buscarTodas();
@@ -39,7 +39,7 @@ export function useTransacoes(): UseTransacoesResult {
     async (id: string): Promise<boolean> => {
       try {
         await transactionRepository.deletar(id);
-        await fetch();
+        await fetch(true);
         return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao deletar transação");
@@ -53,7 +53,7 @@ export function useTransacoes(): UseTransacoesResult {
     async (transaction: Transaction): Promise<boolean> => {
       try {
         await transactionRepository.atualizar(transaction);
-        await fetch();
+        await fetch(true);
         return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao atualizar transação");
@@ -64,8 +64,10 @@ export function useTransacoes(): UseTransacoesResult {
   );
 
   useEffect(() => {
-    fetch();
+    fetch(false);
   }, [fetch]);
 
-  return { transacoes, isLoading, error, refetch: fetch, deletarTransacao, atualizarTransacao };
+  const refetch = useCallback(() => fetch(true), [fetch]);
+
+  return { transacoes, isLoading, error, refetch, deletarTransacao, atualizarTransacao };
 }

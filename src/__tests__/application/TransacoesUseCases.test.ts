@@ -1,70 +1,35 @@
 /**
  * src/__tests__/application/TransacoesUseCases.test.ts
  *
- * ListarTransacoesUseCase e ExcluirTransacaoUseCase.
- * Antes o hook useTransacoes acessava o repositório diretamente,
- * pulando a camada de aplicação.
+ * Testes de LimparDadosUseCase e operações de filtro/exclusão em ITransactionRepository.
  */
 
-import { ExcluirTransacaoUseCase } from "../../application/use-cases/ExcluirTransacaoUseCase";
-import { ListarTransacoesUseCase } from "../../application/use-cases/ListarTransacoesUseCase";
+import { LimparDadosUseCase } from "../../application/use-cases/LimparDadosUseCase";
 import { Transaction } from "../../domain/entities/Transaction";
-import { InMemoryTransactionRepository } from "../helpers/fakes";
+import { FakeUuidGenerator, InMemoryGoalRepository, InMemoryTransactionRepository } from "../helpers/fakes";
 
-const tx = (id: string, date: string, updatedAt?: number) => {
-  const t = Transaction.criar({
-    id,
-    title: id,
-    amount: 10,
-    type: "expense",
-    category: "Casa",
-    isFixed: false,
-    date,
-  });
-  return updatedAt === undefined ? t : Transaction.reconstituir({ ...t.toProps(), updatedAt });
-};
+describe("LimparDadosUseCase & Repositório de Transações", () => {
+  it("apaga todas as transações e recria as caixinhas padrão", async () => {
+    const txRepo = new InMemoryTransactionRepository();
+    const goalRepo = new InMemoryGoalRepository();
+    const uuid = new FakeUuidGenerator("seed");
 
-describe("ListarTransacoesUseCase", () => {
-  it("ordena por data decrescente e, em empate, pela edição mais recente", async () => {
-    const repo = new InMemoryTransactionRepository();
-    await repo.salvar(tx("antiga", "2025-01-01", 1));
-    await repo.salvar(tx("nova-velha", "2025-03-01", 10));
-    await repo.salvar(tx("nova-recente", "2025-03-01", 20));
-
-    const lista = await new ListarTransacoesUseCase(repo).executar();
-
-    expect(lista.map((t) => t.id)).toEqual(["nova-recente", "nova-velha", "antiga"]);
-  });
-
-  it("repassa filtros ao repositório", async () => {
-    const repo = new InMemoryTransactionRepository();
-    await repo.salvar(tx("a", "2025-01-01"));
-    await repo.salvar(tx("b", "2025-02-01"));
-
-    const lista = await new ListarTransacoesUseCase(repo).executar({ month: "2025-02" });
-
-    expect(lista.map((t) => t.id)).toEqual(["b"]);
-  });
-
-  it("lista vazia quando não há transações", async () => {
-    expect(await new ListarTransacoesUseCase(new InMemoryTransactionRepository()).executar()).toEqual([]);
-  });
-});
-
-describe("ExcluirTransacaoUseCase", () => {
-  it("remove a transação existente", async () => {
-    const repo = new InMemoryTransactionRepository();
-    await repo.salvar(tx("a", "2025-01-01"));
-    await repo.salvar(tx("b", "2025-01-02"));
-
-    await new ExcluirTransacaoUseCase(repo).executar("a");
-
-    expect(repo.store.map((t) => t.id)).toEqual(["b"]);
-  });
-
-  it("falha quando a transação não existe", async () => {
-    await expect(new ExcluirTransacaoUseCase(new InMemoryTransactionRepository()).executar("x")).rejects.toThrow(
-      "Transação não encontrada."
+    await txRepo.salvar(
+      Transaction.criar({
+        id: "tx-1",
+        title: "Mercado",
+        amount: 250,
+        type: "expense",
+        category: "Alimentação",
+        isFixed: false,
+        date: "2026-10-12",
+      })
     );
+
+    const useCase = new LimparDadosUseCase(txRepo, goalRepo, uuid);
+    await useCase.executar();
+
+    expect(await txRepo.buscarTodas()).toHaveLength(0);
+    expect(await goalRepo.buscarTodas()).toHaveLength(2);
   });
 });

@@ -1,13 +1,14 @@
 /**
  * app/(tabs)/analytics.tsx
  *
- * Nova tela dedicada a Gráficos e Estatísticas Detalhadas.
+ * Tela dedicada a Gráficos e Estatísticas Detalhadas — Tema Preto & Roxo.
  */
 
+import { useCallback } from "react";
 import { View, Text, ScrollView, Dimensions, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { LinearGradient } from "expo-linear-gradient";
 import { BarChart, LineChart } from "react-native-chart-kit";
 import { useDashboardData } from "../../src/adapters/hooks/useDashboardData";
 
@@ -19,73 +20,84 @@ export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const { dados, isLoading, error, refetch } = useDashboardData();
 
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
   if (isLoading) {
     return (
-      <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <View className="flex-1" style={{ paddingTop: insets.top }}>
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#0891b2" />
-          <Text className="text-slate-500 mt-4 font-semibold">Analisando dados financeiros...</Text>
+      <View className="flex-1 bg-slate-50 dark:bg-[#05050A]">
+        <View className="flex-1" style={{ paddingTop: insets.top }}>
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#8b5cf6" />
+            <Text className="text-slate-500 mt-4 font-semibold">Analisando dados financeiros...</Text>
+          </View>
         </View>
-      </View>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <View className="flex-1" style={{ paddingTop: insets.top }}>
-        <View className="flex-1 justify-center items-center">
-          <Text className="text-rose-500 mb-4">{error}</Text>
-          <TouchableOpacity className="bg-cyan-600 px-6 py-3 rounded-xl" onPress={refetch}>
-            <Text className="text-white font-bold">Tentar novamente</Text>
-          </TouchableOpacity>
+      <View className="flex-1 bg-slate-50 dark:bg-[#05050A]">
+        <View className="flex-1" style={{ paddingTop: insets.top }}>
+          <View className="flex-1 justify-center items-center">
+            <Text className="text-orange-500 dark:text-orange-400 mb-4">{error}</Text>
+            <TouchableOpacity className="bg-violet-600 px-6 py-3 rounded-xl" onPress={refetch}>
+              <Text className="text-white font-bold">Tentar novamente</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
       </View>
     );
   }
 
-  // Simular dados dos últimos 6 meses para o LineChart
+  const historico = dados?.historicoMensal ?? [];
+  const labelsHistorico =
+    historico.length > 0 ? historico.map((h) => h.labelCurto) : ["M-5", "M-4", "M-3", "M-2", "M-1", "Atual"];
+  const serieReceitas =
+    historico.length > 0 ? historico.map((h) => Math.round(h.receitas)) : [0, 0, 0, 0, 0, 0];
+  const serieDespesas =
+    historico.length > 0 ? historico.map((h) => Math.round(h.despesas)) : [0, 0, 0, 0, 0, 0];
+
+  // Dados reais dos últimos 6 meses: Ganhos (Verde Esmeralda) x Saídas (Coral-Âmbar Quente)
   const lineChartData = {
-    labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"],
+    labels: labelsHistorico,
     datasets: [
       {
-        data: [1200, 1900, 1500, 2200, 1800, dados?.totalReceitas ? dados.totalReceitas / 1000 : 2500],
-        color: (opacity = 1) => `rgba(6, 182, 212, ${opacity})`, // Cyan (Ganhos)
+        data: serieReceitas,
+        color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`, // Esmeralda (Receitas)
         strokeWidth: 3,
       },
       {
-        data: [900, 1200, 1400, 1100, 1500, dados?.totalDespesas ? dados.totalDespesas / 1000 : 1600],
-        color: (opacity = 1) => `rgba(244, 63, 94, ${opacity})`, // Vermelho (Gastos)
+        data: serieDespesas,
+        color: (opacity = 1) => `rgba(251, 146, 60, ${opacity})`, // Coral-Âmbar (Despesas — combina com Roxo e Verde!)
         strokeWidth: 3,
-      }
+      },
     ],
-    legend: ["Receitas", "Despesas"]
+    legend: ["Receitas", "Saídas"],
   };
 
-  // Simular dados semanais para o BarChart
+  const semanas = dados?.despesasPorSemana ?? [0, 0, 0, 0];
   const barChartData = {
     labels: ["Sem 1", "Sem 2", "Sem 3", "Sem 4"],
     datasets: [
       {
-        data: [
-          (dados?.totalDespesas ?? 0) * 0.2,
-          (dados?.totalDespesas ?? 0) * 0.4,
-          (dados?.totalDespesas ?? 0) * 0.1,
-          (dados?.totalDespesas ?? 0) * 0.3,
-        ]
-      }
-    ]
+        data: semanas.map((v) => Math.round(v)),
+      },
+    ],
   };
 
   const chartConfig = {
     backgroundColor: "transparent",
     backgroundGradientFromOpacity: 0,
     backgroundGradientToOpacity: 0,
-    color: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(15, 23, 42, ${opacity})`,
-    labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(15, 23, 42, ${opacity})`,
+    color: (opacity = 1) =>
+      isDark ? `rgba(196, 181, 253, ${opacity})` : `rgba(109, 40, 217, ${opacity})`,
+    labelColor: (opacity = 1) =>
+      isDark ? `rgba(226, 232, 240, ${opacity})` : `rgba(15, 23, 42, ${opacity})`,
     strokeWidth: 2,
     barPercentage: 0.6,
     useShadowColorFromDataset: false,
@@ -93,21 +105,27 @@ export default function AnalyticsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+    <View className="flex-1 bg-slate-50 dark:bg-[#05050A]">
       <View className="flex-1" style={{ paddingTop: insets.top }}>
         <ScrollView className="flex-1" contentContainerStyle={{ padding: 20 }}>
           <View className="mb-6">
-            <Text className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Análises 📈</Text>
+            <Text className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              Análises 📈
+            </Text>
             <Text className="text-sm font-medium text-slate-600 dark:text-slate-400 mt-1">
               Visão macro da sua saúde financeira
             </Text>
           </View>
 
           {/* Line Chart */}
-          <View className="bg-white/80 dark:bg-slate-900/60 rounded-[28px] p-5 mb-5 border border-slate-200/50 dark:border-slate-800/50 shadow-sm backdrop-blur-md">
-            <Text className="text-base font-bold text-slate-900 dark:text-white mb-1">Evolução Mensal (Milhares)</Text>
-            <Text className="text-xs text-slate-500 dark:text-slate-400 mb-6">Comparativo Histórico: Ganhos x Gastos</Text>
-            
+          <View className="bg-white/90 dark:bg-[#090d16] rounded-[28px] p-5 mb-5 border border-violet-100 dark:border-violet-950/80 shadow-sm">
+            <Text className="text-base font-bold text-slate-900 dark:text-white mb-1">
+              Evolução Mensal (Últimos 6 Meses)
+            </Text>
+            <Text className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+              Comparativo Real (R$): Receitas (Verde) x Saídas (Coral)
+            </Text>
+
             <LineChart
               data={lineChartData}
               width={width - 80}
@@ -121,10 +139,14 @@ export default function AnalyticsScreen() {
           </View>
 
           {/* Bar Chart */}
-          <View className="bg-white/80 dark:bg-slate-900/60 rounded-[28px] p-5 mb-5 border border-slate-200/50 dark:border-slate-800/50 shadow-sm backdrop-blur-md">
-            <Text className="text-base font-bold text-slate-900 dark:text-white mb-1">Frequência de Despesas</Text>
-            <Text className="text-xs text-slate-500 dark:text-slate-400 mb-6">Em qual semana você gasta mais?</Text>
-            
+          <View className="bg-white/90 dark:bg-[#090d16] rounded-[28px] p-5 mb-5 border border-violet-100 dark:border-violet-950/80 shadow-sm">
+            <Text className="text-base font-bold text-slate-900 dark:text-white mb-1">
+              Frequência de Despesas
+            </Text>
+            <Text className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+              Em qual semana você concentra mais saídas?
+            </Text>
+
             <BarChart
               data={barChartData}
               width={width - 80}
@@ -133,7 +155,7 @@ export default function AnalyticsScreen() {
               yAxisSuffix=""
               chartConfig={{
                 ...chartConfig,
-                color: (opacity = 1) => `rgba(6, 182, 212, ${opacity})`, // Cyan
+                color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`, // Violeta
               }}
               style={{ marginVertical: 8, borderRadius: 16 }}
               withInnerLines={false}

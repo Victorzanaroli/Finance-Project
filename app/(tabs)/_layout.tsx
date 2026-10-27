@@ -16,13 +16,13 @@ interface TabIconProps {
 }
 
 function TabIcon({ label, iconName, focused, isDark }: TabIconProps) {
-  const activeColor = isDark ? "#22d3ee" : "#0891b2"; // Cyan
+  const activeColor = isDark ? "#a78bfa" : "#7c3aed"; // Violet 400 (Dark) / Violet 600 (Light)
   const inactiveColor = isDark ? "#64748b" : "#94a3b8";
 
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 4, width: "100%" }}>
       <Ionicons
-        name={focused ? iconName : (String(iconName) + "-outline" as any)}
+        name={focused ? iconName : ((String(iconName) + "-outline") as any)}
         size={22}
         color={focused ? activeColor : inactiveColor}
       />
@@ -51,9 +51,10 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          backgroundColor: isDark ? "#040B16" : "#ffffff",
-          borderTopColor: isDark ? "#1e293b" : "#e2e8f0",
+          backgroundColor: isDark ? "#05050A" : "#ffffff",
+          borderTopColor: isDark ? "#1e1b4b" : "#ede9fe",
           borderTopWidth: 1,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom,
@@ -87,8 +88,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="calculadoras"
         options={{
-          title: "Cálculo",
-          tabBarIcon: ({ focused }) => <TabIcon label="Cálculo" iconName="calculator" focused={focused} isDark={isDark} />,
+          title: "Chat IA",
+          tabBarIcon: ({ focused }) => <TabIcon label="Chat IA" iconName="chatbubbles" focused={focused} isDark={isDark} />,
         }}
       />
       <Tabs.Screen

@@ -17,6 +17,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { obterResumoFinanceiroUseCase } from "../composition-root";
+import type {
+  DespesaPorCategoria,
+  HistoricoMensalItem,
+} from "../../application/use-cases/ObterResumoFinanceiroUseCase";
+import type { ProximoGastoFixo } from "../../domain/services/AlertasGastosFixos";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos públicos do hook
@@ -28,9 +33,15 @@ export interface DashboardFinanceiro {
   totalDespesasVariaveis: number;
   totalDespesas: number;
   saldoLivre: number;
+  totalPrevisoesDespesas: number;
+  totalPrevisoesReceitas: number;
   mesReferencia: string;
   /** Label formatado, ex: "Setembro 2025" */
   mesLabel: string;
+  despesasPorCategoria: DespesaPorCategoria[];
+  despesasPorSemana: [number, number, number, number];
+  historicoMensal: HistoricoMensalItem[];
+  proximosGastosFixos: ProximoGastoFixo[];
 }
 
 const MESES = [
@@ -63,8 +74,8 @@ export function useDashboardData(mesReferencia?: string): UseDashboardDataResult
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    setIsLoading(true);
+  const fetch = useCallback(async (silencioso = false) => {
+    if (!silencioso) setIsLoading(true);
     setError(null);
     try {
       const resumo = await obterResumoFinanceiroUseCase.executar(mesReferencia);
@@ -74,8 +85,14 @@ export function useDashboardData(mesReferencia?: string): UseDashboardDataResult
         totalDespesasVariaveis: resumo.totalDespesasVariaveis,
         totalDespesas: resumo.totalDespesasFixas + resumo.totalDespesasVariaveis,
         saldoLivre: resumo.saldoLivre,
+        totalPrevisoesDespesas: resumo.totalPrevisoesDespesas,
+        totalPrevisoesReceitas: resumo.totalPrevisoesReceitas,
         mesReferencia: resumo.mesReferencia,
         mesLabel: buildMesLabel(resumo.mesReferencia),
+        despesasPorCategoria: resumo.despesasPorCategoria,
+        despesasPorSemana: resumo.despesasPorSemana,
+        historicoMensal: resumo.historicoMensal,
+        proximosGastosFixos: resumo.proximosGastosFixos,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar dados");
@@ -85,8 +102,10 @@ export function useDashboardData(mesReferencia?: string): UseDashboardDataResult
   }, [mesReferencia]);
 
   useEffect(() => {
-    fetch();
+    fetch(false);
   }, [fetch]);
 
-  return { dados, isLoading, error, refetch: fetch };
+  const refetch = useCallback(() => fetch(true), [fetch]);
+
+  return { dados, isLoading, error, refetch };
 }

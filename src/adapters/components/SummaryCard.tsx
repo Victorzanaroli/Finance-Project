@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
-import { useColorScheme } from "react-native";
+import { useColorScheme } from "nativewind";
 
 interface SummaryCardProps {
   icon: string;
@@ -11,9 +11,10 @@ interface SummaryCardProps {
 }
 
 export function SummaryCard({ icon, label, valor, corValor, corBorda, sublabel }: SummaryCardProps) {
-  const isDark = useColorScheme() === "dark";
-  const bgColor = isDark ? "#0f172a" : "#ffffff";
-  const borderColor = isDark ? "#1e293b" : "#e2e8f0";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const bgColor = isDark ? "#090d16" : "#ffffff";
+  const borderColor = isDark ? "#1e1b4b" : "#ede9fe";
 
   return (
     <View style={[styles.card, { backgroundColor: bgColor, borderColor: borderColor, borderLeftColor: corBorda, borderLeftWidth: 4 }]}>

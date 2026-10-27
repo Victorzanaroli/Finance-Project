@@ -32,9 +32,9 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 
 import { useRegistrarTransacao } from "../../src/adapters/hooks/useRegistrarTransacao";
 import { useTransacoes } from "../../src/adapters/hooks/useTransacoes";
@@ -66,12 +66,12 @@ const CATEGORIAS_RECEITA: CategoriaOption[] = [
 ];
 
 const CATEGORIAS_DESPESA: CategoriaOption[] = [
-  { label: "Lazer", iconName: "airplane-outline", iconFamily: "Ionicons", color: "#ec4899" },
-  { label: "Alimentação", iconName: "restaurant-outline", iconFamily: "Ionicons", color: "#f97316" },
-  { label: "Assinaturas", iconName: "film-outline", iconFamily: "Ionicons", color: "#14b8a6" },
-  { label: "Saúde", iconName: "heart-outline", iconFamily: "Ionicons", color: "#ef4444" },
-  { label: "Casa", iconName: "home-outline", iconFamily: "Ionicons", color: "#3b82f6" },
-  { label: "Poupança", iconName: "shield-checkmark-outline", iconFamily: "Ionicons", color: "#67e8f9" },
+  { label: "Lazer", iconName: "airplane-outline", iconFamily: "Ionicons", color: "#a78bfa" },
+  { label: "Alimentação", iconName: "restaurant-outline", iconFamily: "Ionicons", color: "#fb923c" },
+  { label: "Assinaturas", iconName: "film-outline", iconFamily: "Ionicons", color: "#8b5cf6" },
+  { label: "Saúde", iconName: "heart-outline", iconFamily: "Ionicons", color: "#f59e0b" },
+  { label: "Casa", iconName: "home-outline", iconFamily: "Ionicons", color: "#c084fc" },
+  { label: "Poupança", iconName: "shield-checkmark-outline", iconFamily: "Ionicons", color: "#34d399" },
   { label: "Reserva da Moto", iconName: "construct-outline", iconFamily: "Ionicons", color: "#f59e0b" },
 ];
 
@@ -139,23 +139,21 @@ function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
   const handleTirarFoto = useCallback(async () => {
     setProcessando(true);
     try {
-      await cameraGateway.tirarFoto(cameraRef);
-      setTimeout(() => {
-        setProcessando(false);
-        onCapturaConcluida("Conta de Luz", "150.00", "Casa");
-      }, 2000);
+      const foto = await cameraGateway.tirarFoto(cameraRef);
+      const ocr = await cameraGateway.simularOcr(foto ?? { uri: "captura-local" });
+      setProcessando(false);
+      onCapturaConcluida(ocr.titulo, ocr.valor, ocr.categoria);
     } catch {
-      setTimeout(() => {
-        setProcessando(false);
-        onCapturaConcluida("Conta de Luz", "150.00", "Casa");
-      }, 2000);
+      const ocr = await cameraGateway.simularOcr({ uri: "captura-fallback" });
+      setProcessando(false);
+      onCapturaConcluida(ocr.titulo, ocr.valor, ocr.categoria);
     }
   }, [onCapturaConcluida]);
 
   if (!permission) {
     return (
       <View style={camStyles.container}>
-        <ActivityIndicator color="#0891b2" size="large" />
+        <ActivityIndicator color="#8b5cf6" size="large" />
       </View>
     );
   }
@@ -163,7 +161,7 @@ function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
   if (!permission.granted) {
     return (
       <View style={camStyles.container}>
-        <Ionicons name="camera" size={48} color="#0891b2" style={{ alignSelf: "center", marginBottom: 16 }} />
+        <Ionicons name="camera" size={48} color="#8b5cf6" style={{ alignSelf: "center", marginBottom: 16 }} />
         <Text style={camStyles.permTitle}>Permissão de Câmera Necessária</Text>
         <Text style={camStyles.permSubtitle}>
           Precisamos de acesso à sua câmera para escanear contas e faturas automaticamente.
@@ -201,7 +199,7 @@ function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
 
           {processando ? (
             <View style={camStyles.processandoContainer}>
-              <ActivityIndicator color="#0891b2" size="large" />
+              <ActivityIndicator color="#8b5cf6" size="large" />
               <Text style={camStyles.processandoTitle}>Lendo dados da fatura...</Text>
               <Text style={camStyles.processandoSub}>Aguarde 2 segundos para auto-preenchimento</Text>
             </View>
@@ -219,9 +217,9 @@ function CameraScreen({ onCapturaConcluida, onFechar }: CameraScreenProps) {
 }
 
 const getCamStyles = (isDark: boolean) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: isDark ? "#020617" : "#f8fafc", justifyContent: "center" },
+  container: { flex: 1, backgroundColor: isDark ? "#05050A" : "#f8fafc", justifyContent: "center" },
   camera: { flex: 1 },
-  overlay: { flex: 1, backgroundColor: isDark ? isDark ? "rgba(2, 6, 23, 0.85)" : "rgba(2, 6, 23, 0.5)" : "rgba(2, 6, 23, 0.4)", justifyContent: "space-between", padding: 24 },
+  overlay: { flex: 1, backgroundColor: isDark ? "rgba(5, 5, 10, 0.85)" : "rgba(5, 5, 10, 0.45)", justifyContent: "space-between", padding: 24 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 40 },
   topTitle: { color: isDark ? "#f1f5f9" : "#0f172a", fontSize: 16, fontWeight: "700" },
   fecharBtn: { padding: 8 },
@@ -233,7 +231,7 @@ const getCamStyles = (isDark: boolean) => StyleSheet.create({
     alignItems: "center",
     position: "relative",
   },
-  corner: { position: "absolute", width: 28, height: 28, borderColor: "#0891b2", borderWidth: 3 },
+  corner: { position: "absolute", width: 28, height: 28, borderColor: "#8b5cf6", borderWidth: 3 },
   cornerTL: { top: 0, left: 0, borderBottomWidth: 0, borderRightWidth: 0 },
   cornerTR: { top: 0, right: 0, borderBottomWidth: 0, borderLeftWidth: 0 },
   cornerBL: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0 },
@@ -249,11 +247,11 @@ const getCamStyles = (isDark: boolean) => StyleSheet.create({
   capturaBtnInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: isDark ? "#ffffff" : "#0f172a" },
   processandoContainer: { alignItems: "center", gap: 8, paddingBottom: 40 },
   processandoTitle: { color: isDark ? "#ffffff" : "#0f172a", fontSize: 16, fontWeight: "700" },
-  processandoSub: { color: "#67e8f9", fontSize: 12 },
+  processandoSub: { color: "#c4b5fd", fontSize: 12 },
   permTitle: { fontSize: 20, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a", textAlign: "center", marginBottom: 12 },
   permSubtitle: { fontSize: 14, color: "#94a3b8", textAlign: "center", marginBottom: 24, paddingHorizontal: 20, lineHeight: 20 },
-  permBtn: { backgroundColor: "#0891b2", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, marginBottom: 12, alignItems: "center" },
-  permBtnText: { color: isDark ? "#ffffff" : "#0f172a", fontWeight: "700", fontSize: 15 },
+  permBtn: { backgroundColor: "#7c3aed", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, marginBottom: 12, alignItems: "center" },
+  permBtnText: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
   cancelBtn: { paddingVertical: 10, alignItems: "center" },
   cancelBtnText: { color: isDark ? "#64748b" : "#94a3b8", fontSize: 14 },
 });
@@ -319,7 +317,7 @@ function ModalSelecaoCategoria({
                     {opt.label}
                   </Text>
                   {selecionada && (
-                    <Ionicons name="checkmark-circle" size={22} color="#0891b2" style={{ marginLeft: "auto" }} />
+                    <Ionicons name="checkmark-circle" size={22} color="#8b5cf6" style={{ marginLeft: "auto" }} />
                   )}
                 </TouchableOpacity>
               );
@@ -334,17 +332,17 @@ function ModalSelecaoCategoria({
 const getCatModalStyles = (isDark: boolean) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: isDark ? "rgba(2, 6, 23, 0.85)" : "rgba(2, 6, 23, 0.5)",
+    backgroundColor: isDark ? "rgba(5, 5, 10, 0.85)" : "rgba(5, 5, 10, 0.5)",
     justifyContent: "flex-end",
   },
   cardModal: {
-    backgroundColor: isDark ? "#0f172a" : isDark ? "#ffffff" : "#0f172a",
+    backgroundColor: isDark ? "#090d16" : "#ffffff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     gap: 16,
     borderWidth: 1,
-    borderColor: isDark ? "#1e293b" : isDark ? "#f1f5f9" : "#0f172a",
+    borderColor: isDark ? "#2e1065" : "#ede9fe",
   },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   titulo: { fontSize: 16, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a" },
@@ -359,13 +357,13 @@ const getCatModalStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 6,
-    backgroundColor: isDark ? "#1e293b" : isDark ? "#f1f5f9" : "#0f172a",
+    backgroundColor: isDark ? "#131129" : "#f5f3ff",
     borderWidth: 1,
-    borderColor: isDark ? "#334155" : "#cbd5e1",
+    borderColor: isDark ? "#2e1065" : "#ddd6fe",
   },
   itemRowSelected: {
-    backgroundColor: "#083344",
-    borderColor: "#0891b2",
+    backgroundColor: isDark ? "#2e1065" : "#ede9fe",
+    borderColor: isDark ? "#8b5cf6" : "#7c3aed",
   },
   iconContainer: {
     width: 32,
@@ -377,7 +375,7 @@ const getCatModalStyles = (isDark: boolean) => StyleSheet.create({
     color: isDark ? "#f1f5f9" : "#0f172a",
   },
   itemTextSelected: {
-    color: "#67e8f9",
+    color: isDark ? "#c4b5fd" : "#6d28d9",
     fontWeight: "700",
   },
 });
@@ -524,12 +522,12 @@ function NovaTransacaoModal({
             onPress={() => setCameraAberta(true)}
             activeOpacity={0.8}
           >
-            <Ionicons name="camera" size={24} color="#67e8f9" />
+            <Ionicons name="camera" size={24} color="#c4b5fd" />
             <View style={{ flex: 1, marginLeft: 8 }}>
               <Text style={styles.cameraHighlightTitle}>Escanear Conta com Câmera</Text>
               <Text style={styles.cameraHighlightSub}>Auto-preencher formulário via OCR</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#0891b2" />
+            <Ionicons name="chevron-forward" size={20} color="#8b5cf6" />
           </TouchableOpacity>
 
           <View style={styles.divisorOu}>
@@ -545,7 +543,7 @@ function NovaTransacaoModal({
               style={[styles.typeBtn, type === "expense" && styles.typeBtnExpenseActive]}
               onPress={() => setType("expense")}
             >
-              <Text style={[styles.typeBtnText, type === "expense" && { color: "#f43f5e" }]}>
+              <Text style={[styles.typeBtnText, type === "expense" && { color: "#fb923c" }]}>
                 📉 Despesa
               </Text>
             </TouchableOpacity>
@@ -594,7 +592,7 @@ function NovaTransacaoModal({
               {renderCategoryIcon(categoria, 22)}
               <Text style={styles.categorySelectText}>{categoria}</Text>
             </View>
-            <Ionicons name="chevron-down" size={20} color="#67e8f9" />
+            <Ionicons name="chevron-down" size={20} color="#a78bfa" />
           </TouchableOpacity>
 
           {/* Switch Fixa/Recorrente */}
@@ -606,8 +604,8 @@ function NovaTransacaoModal({
             <Switch
               value={isFixed}
               onValueChange={setIsFixed}
-              trackColor={{ false: isDark ? "#1e293b" : isDark ? "#f1f5f9" : "#0f172a", true: "#0891b2" }}
-              thumbColor={isFixed ? "#67e8f9" : isDark ? "#475569" : "#94a3b8"}
+              trackColor={{ false: isDark ? "#1e1b4b" : "#cbd5e1", true: "#7c3aed" }}
+              thumbColor={isFixed ? "#c4b5fd" : isDark ? "#475569" : "#94a3b8"}
             />
           </View>
 
@@ -617,7 +615,7 @@ function NovaTransacaoModal({
               
               <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
                 <TouchableOpacity 
-                  style={[styles.input, { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: diaCobranca === "quinto_dia_util" ? "#0891b2" : (isDark ? "#1e293b" : "#f1f5f9") }]}
+                  style={[styles.input, { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: diaCobranca === "quinto_dia_util" ? "#7c3aed" : (isDark ? "#131129" : "#f1f5f9") }]}
                   onPress={() => setDiaCobranca("quinto_dia_util")}
                 >
                   <Text style={{ color: diaCobranca === "quinto_dia_util" ? "#fff" : (isDark ? "#f1f5f9" : "#0f172a"), fontWeight: "600", fontSize: 13 }}>5º Dia Útil</Text>
@@ -681,9 +679,10 @@ function TransacaoItem({ transaction, onDelete, onReconcile }: TransacaoItemProp
     transaction.category === "Poupança" || transaction.category === "Reserva da Moto";
   const isIncome = transaction.type === "income";
 
-  let bgCard = isDark ? "#0f172a" : "#ffffff";
-  let borderColor = isDark ? "#1e293b" : "#e2e8f0";
-  let valorCor = isIncome ? "#34d399" : "#f43f5e";
+  let bgCard = isDark ? "#090d16" : "#ffffff";
+  let borderColor = isDark ? "#1e1b4b" : "#ede9fe";
+  // Harmonia Triádica: Verde Esmeralda para receitas e Coral-Âmbar Suave para despesas
+  let valorCor = isIncome ? (isDark ? "#34d399" : "#059669") : (isDark ? "#fb923c" : "#ea580c");
   let sinal = isIncome ? "+" : "-";
 
   if (transaction.isForecast) {
@@ -691,9 +690,9 @@ function TransacaoItem({ transaction, onDelete, onReconcile }: TransacaoItemProp
     borderColor = "#f59e0b";
     valorCor = "#f59e0b";
   } else if (isPoupanca) {
-    bgCard = isDark ? "#083344" : "#cffafe"; // Cyan-950 and Cyan-100
-    borderColor = "#0891b2";
-    valorCor = isDark ? "#67e8f9" : "#0891b2";
+    bgCard = isDark ? "#1e1035" : "#f3e8ff"; // Roxo/Violeta para Poupança
+    borderColor = "#8b5cf6";
+    valorCor = isDark ? "#c4b5fd" : "#7c3aed";
   }
 
   return (
@@ -711,15 +710,15 @@ function TransacaoItem({ transaction, onDelete, onReconcile }: TransacaoItemProp
           <View
             style={[
               styles.txCategoryBadge,
-              isPoupanca && { backgroundColor: "#083344" },
-              isIncome && { backgroundColor: "#065f46" },
+              isPoupanca && { backgroundColor: isDark ? "#2e1065" : "#ede9fe" },
+              isIncome && { backgroundColor: isDark ? "#065f46" : "#d1fae5" },
             ]}
           >
             <Text
               style={[
                 styles.txCategoryText,
-                isPoupanca && { color: "#67e8f9" },
-                isIncome && { color: "#34d399" },
+                isPoupanca && { color: isDark ? "#c4b5fd" : "#7c3aed" },
+                isIncome && { color: isDark ? "#34d399" : "#059669" },
               ]}
             >
               {transaction.category}
@@ -843,9 +842,18 @@ export default function LancamentosScreen() {
 
   const [modalReconciliarVisible, setModalReconciliarVisible] = useState(false);
   const [transacaoReconciliar, setTransacaoReconciliar] = useState<Transaction | null>(null);
+  const [filtroTipo, setFiltroTipo] = useState<"todos" | "expense" | "income" | "fixos" | "previsoes">("todos");
 
   const params = useLocalSearchParams();
   const router = useRouter();
+
+  const { transacoes, isLoading, refetch, deletarTransacao, atualizarTransacao } = useTransacoes();
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   useEffect(() => {
     if (params.openModal === "true") {
@@ -864,9 +872,7 @@ export default function LancamentosScreen() {
     }
   }, [params.openModal, params.openScan]);
 
-  const { transacoes, isLoading, refetch, deletarTransacao, atualizarTransacao } = useTransacoes();
-
-  const transacoesProjetadas = React.useMemo(() => {
+  const transacoesProjetadas = useMemo(() => {
     const hoje = new Date();
     const anoAtual = hoje.getFullYear();
     const mesAtual = hoje.getMonth() + 1; // 1-12
@@ -895,6 +901,16 @@ export default function LancamentosScreen() {
       return t;
     });
   }, [transacoes]);
+
+  const transacoesFiltradas = useMemo(() => {
+    return transacoesProjetadas.filter((t) => {
+      if (filtroTipo === "expense") return t.type === "expense" && !t.isForecast;
+      if (filtroTipo === "income") return t.type === "income" && !t.isForecast;
+      if (filtroTipo === "fixos") return t.isFixed;
+      if (filtroTipo === "previsoes") return t.isForecast;
+      return true;
+    });
+  }, [transacoesProjetadas, filtroTipo]);
 
   const handleReconcile = useCallback(async (transaction: Transaction, newAmount: number) => {
     const props = transaction.toProps();
@@ -993,22 +1009,71 @@ export default function LancamentosScreen() {
         {/* Lista de Histórico Real do SQLite com Ícones Vector */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Histórico de Transações 📋</Text>
-          <Text style={styles.sectionSub}>{transacoesProjetadas.length} registros (Mês Atual)</Text>
+          <Text style={styles.sectionSub}>{transacoesFiltradas.length} registros</Text>
         </View>
 
-        {isLoading && transacoesProjetadas.length === 0 ? (
-          <ActivityIndicator color="#0891b2" style={{ marginVertical: 40 }} />
-        ) : transacoesProjetadas.length === 0 ? (
+        {/* Chips de Filtro Rápido */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
+        >
+          {[
+            { id: "todos", label: "Todos" },
+            { id: "expense", label: "Saídas" },
+            { id: "income", label: "Entradas" },
+            { id: "fixos", label: "Fixos 🔄" },
+            { id: "previsoes", label: "Previsões ⏳" },
+          ].map((chip) => {
+            const ativo = filtroTipo === chip.id;
+            return (
+              <TouchableOpacity
+                key={chip.id}
+                onPress={() => setFiltroTipo(chip.id as typeof filtroTipo)}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  backgroundColor: ativo
+                    ? "#7c3aed"
+                    : isDark
+                    ? "#090d16"
+                    : "#ffffff",
+                  borderColor: ativo
+                    ? "#8b5cf6"
+                    : isDark
+                    ? "#2e1065"
+                    : "#e2e8f0",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: ativo ? "#ffffff" : isDark ? "#cbd5e1" : "#475569",
+                  }}
+                >
+                  {chip.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {isLoading && transacoesFiltradas.length === 0 ? (
+          <ActivityIndicator color="#8b5cf6" style={{ marginVertical: 40 }} />
+        ) : transacoesFiltradas.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="receipt-outline" size={44} color={isDark ? "#64748b" : "#94a3b8"} style={{ marginBottom: 4 }} />
-            <Text style={styles.emptyTitle}>Nenhum lançamento registrado</Text>
+            <Text style={styles.emptyTitle}>Nenhum lançamento encontrado</Text>
             <Text style={styles.emptySubtitle}>
-              Toque em "+ Novo" ou "Escanear Conta" para adicionar sua primeira receita ou despesa.
+              Toque em "+ Novo" ou altere o filtro acima para visualizar seus registros.
             </Text>
           </View>
         ) : (
           <View style={styles.txList}>
-            {transacoesProjetadas.map((item) => (
+            {transacoesFiltradas.map((item) => (
               <TransacaoItem 
                 key={item.id} 
                 transaction={item} 
@@ -1064,44 +1129,44 @@ export default function LancamentosScreen() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const getStyles = (isDark: boolean) => StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: isDark ? "#020617" : "#f8fafc" },
+  safeArea: { flex: 1, backgroundColor: isDark ? "#05050A" : "#f8fafc" },
   header: {
     flexDirection: "row", justifyContent: "space-between",
     alignItems: "center", padding: 20, paddingBottom: 12,
   },
   headerTitle: { fontSize: 22, fontWeight: "800", color: isDark ? "#f1f5f9" : "#0f172a" },
   headerSub: { fontSize: 12, color: isDark ? "#94a3b8" : "#64748b", marginTop: 2 },
-  addButton: { backgroundColor: "#0891b2", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
-  addButtonText: { color: isDark ? "#ffffff" : "#ffffff", fontWeight: "700", fontSize: 14 },
+  addButton: { backgroundColor: "#7c3aed", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  addButtonText: { color: "#ffffff", fontWeight: "700", fontSize: 14 },
   scrollView: { flex: 1 },
   scrollContent: { padding: 18, gap: 14 },
 
   scanBannerCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: isDark ? "#083344" : "#cffafe", borderRadius: 16, padding: 18,
-    borderWidth: 1, borderColor: "#0891b2",
+    backgroundColor: isDark ? "#1e1035" : "#f3e8ff", borderRadius: 16, padding: 18,
+    borderWidth: 1, borderColor: "#8b5cf6",
   },
   scanIconBg: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "#0891b2",
+    backgroundColor: "#7c3aed",
     alignItems: "center", justifyContent: "center",
   },
   scanInfo: { flex: 1 },
   scanTitle: { fontSize: 16, fontWeight: "800", color: isDark ? "#f1f5f9" : "#0f172a" },
-  scanSub: { fontSize: 12, color: isDark ? "#67e8f9" : "#0891b2", marginTop: 2, lineHeight: 16 },
+  scanSub: { fontSize: 12, color: isDark ? "#c4b5fd" : "#7c3aed", marginTop: 2, lineHeight: 16 },
   scanBadge: {
-    backgroundColor: "#083344", paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 12, borderWidth: 1, borderColor: "#06b6d4",
+    backgroundColor: isDark ? "#2e1065" : "#ede9fe", paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 12, borderWidth: 1, borderColor: "#8b5cf6",
   },
-  scanBadgeText: { color: "#67e8f9", fontSize: 11, fontWeight: "800" },
+  scanBadgeText: { color: isDark ? "#c4b5fd" : "#7c3aed", fontSize: 11, fontWeight: "800" },
 
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 8 },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: isDark ? "#f1f5f9" : "#0f172a" },
   sectionSub: { fontSize: 12, color: isDark ? "#94a3b8" : "#64748b" },
 
   emptyCard: {
-    backgroundColor: isDark ? "#0f172a" : "#ffffff", borderRadius: 16, padding: 36,
-    alignItems: "center", gap: 8, borderWidth: 1, borderColor: isDark ? "#1e293b" : "#e2e8f0",
+    backgroundColor: isDark ? "#090d16" : "#ffffff", borderRadius: 16, padding: 36,
+    alignItems: "center", gap: 8, borderWidth: 1, borderColor: isDark ? "#2e1065" : "#ede9fe",
     borderStyle: "dashed", marginTop: 8,
   },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a" },
@@ -1114,14 +1179,14 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   },
   txIconBg: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: isDark ? "rgba(139, 92, 246, 0.1)" : "rgba(139, 92, 246, 0.08)",
     alignItems: "center", justifyContent: "center",
   },
   txMainInfo: { flex: 1 },
   txTitle: { fontSize: 14, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a" },
   txTagRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   txCategoryBadge: {
-    backgroundColor: isDark ? "#1e293b" : "#e2e8f0",
+    backgroundColor: isDark ? "#131129" : "#f1f5f9",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1133,62 +1198,62 @@ const getStyles = (isDark: boolean) => StyleSheet.create({
   txDeleteBtn: { padding: 4 },
 
   // Modal
-  modalContainer: { flex: 1, backgroundColor: isDark ? "#0f172a" : "#ffffff" },
+  modalContainer: { flex: 1, backgroundColor: isDark ? "#090d16" : "#ffffff" },
   modalHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    padding: 20, borderBottomColor: isDark ? "#1e293b" : "#e2e8f0", borderBottomWidth: 1,
+    padding: 20, borderBottomColor: isDark ? "#2e1065" : "#ede9fe", borderBottomWidth: 1,
   },
   modalTitle: { fontSize: 18, fontWeight: "700", color: isDark ? "#f1f5f9" : "#0f172a" },
-  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? "#1e293b" : "#e2e8f0", alignItems: "center", justifyContent: "center" },
-  modalCloseText: { color: isDark ? "#94a3b8" : "#475569", fontSize: 14, fontWeight: "700" },
+  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? "#131129" : "#f3e8ff", alignItems: "center", justifyContent: "center" },
+  modalCloseText: { color: isDark ? "#c4b5fd" : "#7c3aed", fontSize: 14, fontWeight: "700" },
   modalBody: { padding: 20 },
 
   cameraHighlightBtn: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: isDark ? "#083344" : "#cffafe", borderRadius: 14, padding: 16,
-    borderWidth: 1, borderColor: "#0891b2", marginBottom: 20,
+    backgroundColor: isDark ? "#1e1035" : "#f3e8ff", borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: "#8b5cf6", marginBottom: 20,
   },
   cameraHighlightTitle: { color: isDark ? "#ffffff" : "#0f172a", fontWeight: "700", fontSize: 15 },
-  cameraHighlightSub: { color: isDark ? "#67e8f9" : "#0891b2", fontSize: 12, marginTop: 2 },
+  cameraHighlightSub: { color: isDark ? "#c4b5fd" : "#7c3aed", fontSize: 12, marginTop: 2 },
 
   divisorOu: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
-  divisorLinha: { flex: 1, height: 1, backgroundColor: isDark ? "#1e293b" : "#e2e8f0" },
+  divisorLinha: { flex: 1, height: 1, backgroundColor: isDark ? "#2e1065" : "#ede9fe" },
   divisorTexto: { fontSize: 11, color: isDark ? "#94a3b8" : "#64748b", fontWeight: "500" },
 
   typeSelector: { flexDirection: "row", gap: 12, marginBottom: 16 },
   typeBtn: {
-    flex: 1, backgroundColor: isDark ? "#1e293b" : "#f1f5f9", paddingVertical: 12,
+    flex: 1, backgroundColor: isDark ? "#131129" : "#f1f5f9", paddingVertical: 12,
     borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: "transparent",
   },
-  typeBtnExpenseActive: { borderColor: "#f43f5e", backgroundColor: isDark ? "#1c0a12" : "#ffe4e6" },
+  typeBtnExpenseActive: { borderColor: "#fb923c", backgroundColor: isDark ? "#2a1205" : "#ffedd5" },
   typeBtnIncomeActive: { borderColor: "#10b981", backgroundColor: isDark ? "#052e16" : "#d1fae5" },
   typeBtnText: { color: isDark ? "#94a3b8" : "#64748b", fontWeight: "600", fontSize: 14 },
 
   inputLabel: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 12, fontWeight: "600", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
-  input: { backgroundColor: isDark ? "#1e293b" : "#f1f5f9", borderRadius: 10, padding: 14, color: isDark ? "#f1f5f9" : "#0f172a", fontSize: 15, marginBottom: 16 },
+  input: { backgroundColor: isDark ? "#131129" : "#f5f3ff", borderRadius: 10, padding: 14, color: isDark ? "#f1f5f9" : "#0f172a", fontSize: 15, marginBottom: 16 },
 
   categorySelectBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: isDark ? "#1e293b" : "#f1f5f9",
+    backgroundColor: isDark ? "#131129" : "#f5f3ff",
     borderRadius: 10,
     padding: 14,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: isDark ? "#334155" : "#cbd5e1",
+    borderColor: isDark ? "#2e1065" : "#ddd6fe",
   },
   categorySelectText: { color: isDark ? "#f1f5f9" : "#0f172a", fontSize: 15, fontWeight: "600" },
 
   switchRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    backgroundColor: isDark ? "#1e293b" : "#f1f5f9", padding: 14, borderRadius: 10, marginBottom: 20,
+    backgroundColor: isDark ? "#131129" : "#f5f3ff", padding: 14, borderRadius: 10, marginBottom: 20,
   },
   switchLabel: { color: isDark ? "#f1f5f9" : "#0f172a", fontWeight: "600", fontSize: 14 },
   switchSubLabel: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 12, marginTop: 2 },
 
-  errorText: { color: "#f43f5e", fontSize: 13, marginBottom: 12 },
-  submitBtn: { backgroundColor: "#0891b2", padding: 16, borderRadius: 12, alignItems: "center", marginBottom: 32 },
+  errorText: { color: "#fb923c", fontSize: 13, marginBottom: 12 },
+  submitBtn: { backgroundColor: "#7c3aed", padding: 16, borderRadius: 12, alignItems: "center", marginBottom: 32 },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
 });

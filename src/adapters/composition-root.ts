@@ -20,10 +20,12 @@
 // Infra / Adapters de repositório
 import { TransactionRepositorySQLite } from "./repositories/TransactionRepositorySQLite";
 import { GoalRepositorySQLite } from "./repositories/GoalRepositorySQLite";
+import { ShoppingItemRepositorySQLite } from "./repositories/ShoppingItemRepositorySQLite";
 
 // Adapters de gateway
 import { ExpoUuidGenerator } from "./gateways/uuid/ExpoUuidGenerator";
 import { SyncGatewaySupabase } from "./gateways/sync/SyncGatewaySupabase";
+import { GeminiSupabaseAdvisorGateway } from "./gateways/ai/GeminiSupabaseAdvisorGateway";
 
 // Casos de uso da camada de aplicação
 import { RegistrarTransacaoUseCase } from "../application/use-cases/RegistrarTransacaoUseCase";
@@ -31,18 +33,21 @@ import { ObterResumoFinanceiroUseCase } from "../application/use-cases/ObterResu
 import { ListarCaixinhasUseCase } from "../application/use-cases/ListarCaixinhasUseCase";
 import { DepositarCaixinhaUseCase } from "../application/use-cases/DepositarCaixinhaUseCase";
 import { LimparDadosUseCase } from "../application/use-cases/LimparDadosUseCase";
+import { ConsultarAssistenteFinanceiroUseCase } from "../application/use-cases/ConsultarAssistenteFinanceiroUseCase";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Instâncias de repositórios (singletons por convenção — SQLite é um arquivo)
 // ─────────────────────────────────────────────────────────────────────────────
 export const transactionRepository = new TransactionRepositorySQLite();
 export const goalRepository = new GoalRepositorySQLite();
+export const shoppingItemRepository = new ShoppingItemRepositorySQLite();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Instâncias de gateways
 // ─────────────────────────────────────────────────────────────────────────────
 const uuidGenerator = new ExpoUuidGenerator();
 export const syncGateway = new SyncGatewaySupabase();
+export const financialAdvisorGateway = new GeminiSupabaseAdvisorGateway();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Instâncias de casos de uso (exportadas para uso nos hooks/telas)
@@ -75,4 +80,11 @@ export const limparDadosUseCase = new LimparDadosUseCase(
   transactionRepository,
   goalRepository,
   uuidGenerator
+);
+
+/** Use case do Assistente Financeiro de IA integrado aos dados do SQLite. */
+export const consultarAssistenteFinanceiroUseCase = new ConsultarAssistenteFinanceiroUseCase(
+  transactionRepository,
+  goalRepository,
+  financialAdvisorGateway
 );
